@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export default function Navbar() {
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   
   const isActive = (path: string) => location.pathname === path;
   
@@ -20,6 +20,33 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await signOut();
+  };
+
+  // Get user avatar or initials
+  const getAvatarContent = () => {
+    if (user?.user_metadata?.avatar_url) {
+      return (
+        <img 
+          src={user.user_metadata.avatar_url} 
+          alt="Avatar" 
+          className="w-8 h-8 rounded-full"
+        />
+      );
+    } else {
+      // Extract initials from email or name
+      const name = user?.user_metadata?.full_name || user?.email || '';
+      const initials = name
+        .split(/\s+/)
+        .map(part => part[0]?.toUpperCase() || '')
+        .slice(0, 2)
+        .join('');
+        
+      return (
+        <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-medium">
+          {initials || '?'}
+        </div>
+      );
+    }
   };
 
   return (
@@ -48,7 +75,8 @@ export default function Navbar() {
             </div>
           </div>
           
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
+            {getAvatarContent()}
             <button
               onClick={handleLogout}
               className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 hover:text-primary transition-colors"

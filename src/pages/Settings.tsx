@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Plus, Trash2, Info, DollarSign, IndianRupee, PoundSterling, Calendar, AlertCircle } from 'lucide-react';
 import { userSettingsService } from '../services/supabaseService';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 import type { UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 
@@ -23,8 +25,10 @@ interface Goal {
 }
 
 export default function Settings() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [linkingAccount, setLinkingAccount] = useState(false);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -89,7 +93,7 @@ export default function Settings() {
           Number(data.workflow.maxDailyHours) : 8;
           
         setGeneralSettings({
-          displayName: data.workflow?.displayName || '',
+          displayName: data.workflow?.displayName || user?.user_metadata?.full_name || '',
           maxDailyHours: !isNaN(maxHours) ? maxHours : 8, // Default to 8 if NaN
           workDays: Array.isArray(data.workflow?.workDays) ? data.workflow.workDays : [1, 2, 3, 4, 5],
           preferredCurrency: data.workflow?.preferredCurrency || 'USD',
@@ -215,6 +219,33 @@ export default function Settings() {
     });
   };
 
+  // Link account with Google
+  const handleLinkGoogle = async () => {
+    try {
+      setLinkingAccount(true);
+      setError('');
+      
+      // Use signInWithOAuth instead of linkWithOAuth (which doesn't exist)
+      // This will redirect the user to Google for authentication
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/settings'
+        }
+      });
+      
+      if (error) throw error;
+      
+      // The user will be redirected to Google for authentication
+      // After successful authentication, they'll be redirected back to the settings page
+      // No need to handle navigation here as it's handled by the OAuth flow
+    } catch (err) {
+      console.error('Error linking with Google:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start Google authentication');
+      setLinkingAccount(false);
+    }
+  };
+
   if (loading) {
     return (
       <PageContainer>
@@ -258,6 +289,99 @@ export default function Settings() {
           </div>
         )}
         
+        {/* User Profile Section */}
+        <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-900">User Profile</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Your personal information
+            </p>
+          </div>
+          
+          <div className="p-6 flex flex-col md:flex-row items-start gap-6">
+            <div className="md:w-1/4 flex flex-col items-center">
+              {user?.user_metadata?.avatar_url ? (
+                <img 
+                  src={user.user_metadata.avatar_url}
+                  alt="Profile"
+                  className="w-20 h-20 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xl font-medium">
+                  {user?.email?.substring(0, 2).toUpperCase() || '?'}
+                </div>
+              )}
+              
+              {/* Account linking button for email users */}
+              {user?.app_metadata?.provider === 'email' && (
+                <div className="mt-4 flex flex-col items-center">
+                  <button
+                    onClick={handleLinkGoogle}
+                    disabled={linkingAccount}
+                    className="flex items-center px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors disabled:opacity-50"
+                  >
+                    <Google className="w-4 h-4 mr-2 text-blue-500" />
+                    {linkingAccount ? 'Connecting...' : 'Connect with Google'}
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Link your account with Google for easier sign-in
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1">
+              {user?.user_metadata?.full_name && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <p className="text-gray-900">{user.user_metadata.full_name}</p>
+                </div>
+              )}
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                <p className="text-gray-900">{user?.email}</p>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sign-in Method
+                </label>
+                <p className="text-gray-900 flex items-center">
+                  {user?.app_metadata?.provider === 'google' ? (
+                    <>
+                      <Google className="w-4 h-4 mr-2 text-blue-500" />
+                      Google Account
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4 mr-2 text-gray-500" />
+                      Email and Password
+                    </>
+                  )}
+                </p>
+              </div>
+              
+              <div>
+                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  id="displayName"
+                  value={generalSettings.displayName}
+                  onChange={(e) => setGeneralSettings({ ...generalSettings, displayName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  placeholder="Your name"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  This name will be used throughout the app
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+        
         {/* General Settings Section */}
         <section className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="p-6 border-b border-gray-200">
@@ -268,20 +392,6 @@ export default function Settings() {
           </div>
           
           <div className="p-6 space-y-4">
-            <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
-                Display Name
-              </label>
-              <input
-                type="text"
-                id="displayName"
-                value={generalSettings.displayName}
-                onChange={(e) => setGeneralSettings({ ...generalSettings, displayName: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                placeholder="Your name"
-              />
-            </div>
-            
             <div>
               <label htmlFor="maxDailyHours" className="block text-sm font-medium text-gray-700 mb-1">
                 Maximum Daily Work Hours
@@ -674,3 +784,5 @@ export default function Settings() {
     </PageContainer>
   );
 }
+
+import { ToggleLeft as Google, Mail } from 'lucide-react';
