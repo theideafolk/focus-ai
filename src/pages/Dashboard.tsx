@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { projectService, taskService, userSettingsService } from '../services/supabaseService';
-import type { Project, Task, UserSettings } from '../types';
+import { projectService, taskService, noteService, userSettingsService } from '../services/supabaseService';
+import { storeNoteEmbedding } from '../services/openaiService';
+import type { Project, Task, Note, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import ProjectCard from '../components/dashboard/ProjectCard';
 import TaskList from '../components/dashboard/TaskList';
-import { Link } from 'react-router-dom';
+import DashboardNoteItem from '../components/dashboard/DashboardNoteItem';
+import NoteForm from '../components/notes/NoteForm';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, FileText, LightbulbIcon, Edit } from 'lucide-react';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [projectsMap, setProjectsMap] = useState<Record<string, Project>>({});
+  const [isNoteFormOpen, setIsNoteFormOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<Note | undefined>();
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [preferredCurrency, setPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
 
@@ -23,9 +32,10 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [projectsData, tasksData, settings] = await Promise.all([
+      const [projectsData, tasksData, notesData, settings] = await Promise.all([
         projectService.getAll(),
         taskService.getByStatus('pending'),
+        noteService.getAll(),
         userSettingsService.get(),
       ]);
 
@@ -55,6 +65,19 @@ export default function Dashboard() {
         
       setTasks(upcomingTasks);
       
+      // Get recent notes
+      const recentNotes = [...notesData]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 3); // Show 3 most recent notes
+      setNotes(recentNotes);
+      
+      // Create a map of projects for quick lookup
+      const projectMap: Record<string, Project> = {};
+      projectsData.forEach(project => {
+        projectMap[project.id] = project;
+      });
+      setProjectsMap(projectMap);
+      
       // Set user settings and preferred currency
       if (settings) {
         setUserSettings(settings);
@@ -79,6 +102,53 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to update task status:', err);
     }
+  };
+  
+  const handleCreateNote = async (note: Partial<Note>) => {
+    try {
+      const newNote = await noteService.create(note);
+      
+      // Generate and store embedding for the new note
+      storeNoteEmbedding(newNote);
+      
+      // Update notes list
+      setNotes([newNote, ...notes.slice(0, 2)]); // Keep only 3 notes in the dashboard view
+      setIsNoteFormOpen(false);
+      
+      return newNote;
+    } catch (err) {
+      console.error('Failed to create note:', err);
+      throw new Error('Failed to create note');
+    }
+  };
+  
+  const handleUpdateNote = async (note: Partial<Note>) => {
+    if (!selectedNote?.id) return;
+    
+    try {
+      const updatedNote = await noteService.update(selectedNote.id, note);
+      
+      // Update embedding for the modified note
+      storeNoteEmbedding(updatedNote);
+      
+      // Update notes list
+      setNotes(notes.map(n => 
+        n.id === updatedNote.id ? updatedNote : n
+      ));
+      
+      setIsNoteFormOpen(false);
+      setSelectedNote(undefined);
+      
+      return updatedNote;
+    } catch (err) {
+      console.error('Failed to update note:', err);
+      throw new Error('Failed to update note');
+    }
+  };
+  
+  const handleNoteClick = (note: Note) => {
+    setSelectedNote(note);
+    setIsNoteFormOpen(true);
   };
   
   // Add focus listener to refresh data when tab gets focus (like when returning from project edit)
@@ -132,7 +202,7 @@ export default function Dashboard() {
                   View all
                 </Link>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {projects.map(project => (
                   <ProjectCard 
                     key={project.id} 
@@ -148,18 +218,74 @@ export default function Dashboard() {
               </div>
             </section>
 
+            {/* Notes Section */}
+            <section>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-medium text-gray-900">
+                  Recent Notes
+                </h2>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setSelectedNote(undefined);
+                      setIsNoteFormOpen(true);
+                    }}
+                    className="inline-flex items-center text-sm font-medium text-primary hover:text-primary-dark"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    Add Note
+                  </button>
+                  <Link
+                    to="/notes"
+                    className="text-sm text-primary hover:text-primary-dark"
+                  >
+                    View all
+                  </Link>
+                </div>
+              </div>
+              
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {notes.map(note => (
+                  <DashboardNoteItem 
+                    key={note.id} 
+                    note={note}
+                    project={note.project_id ? projectsMap[note.project_id] : undefined}
+                    onClick={() => handleNoteClick(note)}
+                  />
+                ))}
+                {notes.length === 0 && (
+                  <div className="col-span-full bg-gray-50 rounded-lg p-6 text-center border border-gray-200">
+                    <FileText className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                    <p className="text-gray-500">No notes yet. Add your first note to get started.</p>
+                    <button
+                      onClick={() => {
+                        setSelectedNote(undefined);
+                        setIsNoteFormOpen(true);
+                      }}
+                      className="mt-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mr-1.5" />
+                      Add First Note
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+
             {/* Tasks Section */}
             <section>
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-medium text-gray-900">
                   Today's Tasks
                 </h2>
-                <Link
-                  to="/tasks"
-                  className="text-sm text-primary hover:text-primary-dark"
-                >
-                  View all tasks
-                </Link>
+                <div className="flex gap-3">
+                  <Link
+                    to="/tasks"
+                    className="text-sm text-primary hover:text-primary-dark"
+                  >
+                    View all tasks
+                  </Link>
+                </div>
               </div>
               <TaskList
                 tasks={tasks}
@@ -169,6 +295,18 @@ export default function Dashboard() {
           </>
         )}
       </div>
+      
+      {/* Note Form Modal */}
+      <NoteForm
+        note={selectedNote}
+        isOpen={isNoteFormOpen}
+        onClose={() => {
+          setIsNoteFormOpen(false);
+          setSelectedNote(undefined);
+        }}
+        onSubmit={selectedNote ? handleUpdateNote : handleCreateNote}
+        projects={projects}
+      />
     </PageContainer>
   );
 }

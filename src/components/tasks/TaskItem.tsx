@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { Calendar, Clock, Trash2, CheckCircle2, Circle, Edit } from 'lucide-react';
 import type { Task, Project } from '../../types';
 
 interface TaskItemProps {
@@ -9,6 +9,7 @@ interface TaskItemProps {
   onDelete?: (taskId: string) => void;
   hideActions?: boolean;
   onTimeUpdate?: (taskId: string, actualTime: number) => void;
+  onEdit?: (task: Task) => void;
 }
 
 export default function TaskItem({ 
@@ -17,7 +18,8 @@ export default function TaskItem({
   onStatusChange, 
   onDelete, 
   hideActions,
-  onTimeUpdate 
+  onTimeUpdate,
+  onEdit
 }: TaskItemProps) {
   const [actualTimeInput, setActualTimeInput] = useState(task.actual_time || '');
   
@@ -138,14 +140,28 @@ export default function TaskItem({
         </div>
       </div>
       
-      {onDelete && !hideActions && (
-        <button
-          onClick={() => onDelete(task.id)}
-          className="text-gray-400 hover:text-red-500 transition-colors"
-          aria-label="Delete task"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+      {!hideActions && (
+        <div className="flex gap-1">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(task)}
+              className="text-gray-400 hover:text-primary transition-colors"
+              aria-label="Edit task"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          )}
+          
+          {onDelete && (
+            <button
+              onClick={() => onDelete(task.id)}
+              className="text-gray-400 hover:text-red-500 transition-colors"
+              aria-label="Delete task"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

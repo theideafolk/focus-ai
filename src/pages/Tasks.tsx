@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Filter, CheckCircle2, Calendar, Plus, Clock, ArrowDown, ArrowUp } from 'lucide-react';
+import { Filter, CheckCircle2, Calendar, Plus, Clock, ArrowDown, ArrowUp, Edit } from 'lucide-react';
 import { taskService, projectService, userSettingsService } from '../services/supabaseService';
 import { learnFromTaskCompletion } from '../services/openaiService';
 import type { Task, Project, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import TaskList from '../components/tasks/TaskList';
+import TaskForm from '../components/tasks/TaskForm';
 import GenerateTasksForm from '../components/tasks/GenerateTasksForm';
 
 type FilterType = 'all' | 'pending' | 'in_progress' | 'completed' | 'cancelled';
@@ -22,6 +23,8 @@ export default function Tasks() {
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortType>('priority');
   const [isGenerateFormOpen, setIsGenerateFormOpen] = useState(false);
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | undefined>();
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [totalEstimatedTime, setTotalEstimatedTime] = useState(0);
@@ -167,6 +170,34 @@ export default function Tasks() {
     setIsGenerateFormOpen(false);
   };
   
+  const handleEdit = (task: Task) => {
+    setSelectedTask(task);
+    setIsTaskFormOpen(true);
+  };
+  
+  const handleCreateTask = () => {
+    setSelectedTask(undefined);
+    setIsTaskFormOpen(true);
+  };
+  
+  const handleTaskFormSubmit = async (taskData: Partial<Task>) => {
+    try {
+      if (selectedTask?.id) {
+        // Update existing task
+        const updatedTask = await taskService.update(selectedTask.id, taskData);
+        setTasks(tasks.map(task => 
+          task.id === updatedTask.id ? updatedTask : task
+        ));
+      } else {
+        // Create new task
+        const newTask = await taskService.create(taskData);
+        setTasks([newTask, ...tasks]);
+      }
+    } catch (err) {
+      throw new Error('Failed to save task');
+    }
+  };
+  
   const moveTask = async (index: number, direction: 'up' | 'down') => {
     if (filteredTasks.length <= 1) return;
     
@@ -232,13 +263,22 @@ export default function Tasks() {
               Manage and track tasks across all your projects
             </p>
           </div>
-          <button
-            onClick={() => setIsGenerateFormOpen(true)}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Generate Tasks
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCreateTask}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-700 hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Task
+            </button>
+            <button
+              onClick={() => setIsGenerateFormOpen(true)}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Generate Tasks
+            </button>
+          </div>
         </div>
         
         {error && (
@@ -380,6 +420,7 @@ export default function Tasks() {
                       onStatusChange={handleTaskStatusChange}
                       onDelete={handleTaskDelete}
                       onTimeUpdate={handleTaskTimeUpdate}
+                      onEdit={handleEdit}
                       hideListStyling={true}
                     />
                   </div>
@@ -395,6 +436,14 @@ export default function Tasks() {
         onClose={() => setIsGenerateFormOpen(false)}
         projects={projects}
         onTasksGenerated={handleTasksGenerated}
+      />
+      
+      <TaskForm
+        task={selectedTask}
+        isOpen={isTaskFormOpen}
+        onClose={() => setIsTaskFormOpen(false)}
+        onSubmit={handleTaskFormSubmit}
+        allowProjectChange={true}
       />
     </PageContainer>
   );

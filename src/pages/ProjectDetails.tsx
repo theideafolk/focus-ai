@@ -7,6 +7,7 @@ import { storeNoteEmbedding } from '../services/openaiService';
 import type { Project, Task, Note, UserSettings, ProjectDocument } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import TaskList from '../components/tasks/TaskList';
+import TaskForm from '../components/tasks/TaskForm';
 import ProjectForm from '../components/projects/ProjectForm';
 import NoteForm from '../components/notes/NoteForm';
 import GenerateTasksForm from '../components/tasks/GenerateTasksForm';
@@ -23,9 +24,11 @@ export default function ProjectDetails() {
   const [error, setError] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isNoteFormOpen, setIsNoteFormOpen] = useState(false);
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isGenerateTasksFormOpen, setIsGenerateTasksFormOpen] = useState(false);
   const [isDocumentUploaderOpen, setIsDocumentUploaderOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | undefined>();
+  const [selectedTask, setSelectedTask] = useState<Task | undefined>();
   const [expandedDocs, setExpandedDocs] = useState<number[]>([]);
   const [isAddingDoc, setIsAddingDoc] = useState(false);
   const [newDoc, setNewDoc] = useState({ title: '', content: '' });
@@ -142,6 +145,39 @@ export default function ProjectDetails() {
       setTasks(tasks.filter(task => task.id !== taskId));
     } catch (err) {
       console.error('Failed to delete task:', err);
+    }
+  };
+  
+  const handleTaskEdit = (task: Task) => {
+    setSelectedTask(task);
+    setIsTaskFormOpen(true);
+  };
+  
+  const handleCreateTask = () => {
+    setSelectedTask(undefined);
+    setIsTaskFormOpen(true);
+  };
+  
+  const handleTaskFormSubmit = async (taskData: Partial<Task>) => {
+    if (!project?.id) return;
+    
+    try {
+      if (selectedTask?.id) {
+        // Update existing task
+        const updatedTask = await taskService.update(selectedTask.id, taskData);
+        setTasks(tasks.map(task => 
+          task.id === updatedTask.id ? updatedTask : task
+        ));
+      } else {
+        // Create new task
+        const newTask = await taskService.create({
+          ...taskData,
+          project_id: project.id
+        });
+        setTasks([newTask, ...tasks]);
+      }
+    } catch (err) {
+      throw new Error('Failed to save task');
     }
   };
 
@@ -456,19 +492,29 @@ export default function ProjectDetails() {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-medium text-gray-900">Tasks</h2>
-                  <button
-                    onClick={() => setIsGenerateTasksFormOpen(true)}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
-                  >
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Generate Tasks
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCreateTask}
+                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Task
+                    </button>
+                    <button
+                      onClick={() => setIsGenerateTasksFormOpen(true)}
+                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Generate Tasks
+                    </button>
+                  </div>
                 </div>
                 <TaskList
                   tasks={tasks}
                   projects={{ [project.id]: project }}
                   onStatusChange={handleTaskStatusChange}
                   onDelete={handleTaskDelete}
+                  onEdit={handleTaskEdit}
                 />
               </div>
             )}
@@ -662,6 +708,17 @@ export default function ProjectDetails() {
         isOpen={isNoteFormOpen}
         onClose={handleNoteFormClose}
         onSubmit={handleNoteFormSubmit}
+      />
+      
+      <TaskForm
+        task={selectedTask}
+        projectId={project.id}
+        isOpen={isTaskFormOpen}
+        onClose={() => {
+          setIsTaskFormOpen(false);
+          setSelectedTask(undefined);
+        }}
+        onSubmit={handleTaskFormSubmit}
       />
       
       <GenerateTasksForm

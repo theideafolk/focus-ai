@@ -8,6 +8,7 @@ interface TaskListProps {
   onStatusChange?: (taskId: string, status: Task['status']) => void;
   onDelete?: (taskId: string) => void;
   onTimeUpdate?: (taskId: string, actualTime: number) => void;
+  onEdit?: (task: Task) => void;
   isLoading?: boolean;
   hideListStyling?: boolean;
 }
@@ -18,6 +19,7 @@ export default function TaskList({
   onStatusChange, 
   onDelete, 
   onTimeUpdate,
+  onEdit,
   isLoading,
   hideListStyling = false
 }: TaskListProps) {
@@ -61,6 +63,7 @@ export default function TaskList({
             onStatusChange={onStatusChange}
             onDelete={onDelete}
             onTimeUpdate={onTimeUpdate}
+            onEdit={onEdit}
           />
         ))}
       </>
@@ -77,6 +80,7 @@ export default function TaskList({
             onStatusChange={onStatusChange}
             onDelete={onDelete}
             onTimeUpdate={onTimeUpdate}
+            onEdit={onEdit}
           />
         </div>
       ))}
