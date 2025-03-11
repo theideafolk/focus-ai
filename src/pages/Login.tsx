@@ -18,24 +18,29 @@ export default function Login() {
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
+        // Simple sign up - no extra logic needed
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
         });
-        if (signUpError) throw signUpError;
-
-        // Create initial user settings
-        await userSettingsService.upsert({
-          skills: {},
-          time_estimates: {},
-          workflow: {}
-        });
+        
+        if (signUpError) {
+          console.error('Sign up error:', signUpError);
+          throw signUpError;
+        }
+        
+        // User settings will be created automatically by the database trigger
       } else {
+        // Simple sign in
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (signInError) throw signInError;
+        
+        if (signInError) {
+          console.error('Sign in error:', signInError);
+          throw signInError;
+        }
       }
 
       // Check if there's a saved path to redirect to
@@ -47,7 +52,26 @@ export default function Login() {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      // User-friendly error messages
+      let errorMessage = 'An error occurred';
+      
+      if (err instanceof Error) {
+        console.error('Authentication error details:', err);
+        
+        if (err.message.includes('invalid_credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (err.message.includes('already registered')) {
+          errorMessage = 'This email is already registered. Please sign in instead.';
+        } else if (err.message.includes('password')) {
+          errorMessage = 'Password should be at least 6 characters.';
+        } else if (err.message.includes('Database error')) {
+          errorMessage = 'Registration error. Please try again or contact support.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
