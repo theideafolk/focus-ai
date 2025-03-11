@@ -58,19 +58,29 @@ export default function Settings() {
       
       // Parse stored JSON fields into structured data
       if (data) {
+        console.log('Fetched settings:', data);
+        
         // Parse goals
         if (data.workflow?.goals && Array.isArray(data.workflow.goals)) {
+          console.log('Setting goals from data:', data.workflow.goals);
           setGoals(data.workflow.goals);
+        } else {
+          console.log('No goals found in data, using empty array');
+          setGoals([]);
         }
         
         // Parse skills
         if (data.skills && Array.isArray(data.skills)) {
           setSkills(data.skills);
+        } else {
+          setSkills([]);
         }
         
         // Parse workflow stages
         if (data.workflow?.stages && Array.isArray(data.workflow.stages)) {
           setWorkflowStages(data.workflow.stages);
+        } else {
+          setWorkflowStages([]);
         }
         
         // Parse general settings
@@ -94,21 +104,28 @@ export default function Settings() {
       setError('');
       setSuccess('');
       
-      // Prepare updated settings object
+      // Log the current goals before saving
+      console.log('Goals to be saved:', goals);
+      
+      // Prepare updated settings object with proper structure
       const updatedSettings: Partial<UserSettings> = {
         skills: skills,
         workflow: {
-          ...settings?.workflow,
-          goals: goals,
-          stages: workflowStages,
           displayName: generalSettings.displayName,
           maxDailyHours: generalSettings.maxDailyHours,
           workDays: generalSettings.workDays,
+          goals: goals,
+          stages: workflowStages,
         },
         time_estimates: settings?.time_estimates || {}, // Preserve existing estimates
       };
       
-      await userSettingsService.upsert(updatedSettings);
+      // Log the settings object to verify structure
+      console.log('Saving settings:', JSON.stringify(updatedSettings));
+      
+      const savedSettings = await userSettingsService.upsert(updatedSettings);
+      console.log('Settings saved successfully:', savedSettings);
+      setSettings(savedSettings);
       setSuccess('Settings saved successfully');
     } catch (err) {
       setError('Failed to save settings');

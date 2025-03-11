@@ -63,7 +63,7 @@ export default function Dashboard() {
 
   const handleTaskStatusChange = async (taskId: string, status: Task['status']) => {
     try {
-      await taskService.update(taskId, { status });
+      await taskService.updateStatus(taskId, status);
       setTasks(tasks.map(task => 
         task.id === taskId ? { ...task, status } : task
       ));
@@ -73,14 +73,36 @@ export default function Dashboard() {
   };
   
   const handleTasksGenerated = (newTasks: Task[]) => {
-    // Update tasks list with any new tasks for today
-    const today = new Date().toISOString().split('T')[0];
-    const todayGeneratedTasks = newTasks.filter(task => 
-      !task.due_date || task.due_date >= today
-    ).slice(0, 5);
-    
-    setTasks([...todayGeneratedTasks, ...tasks].slice(0, 5));
+    // Refresh task list after generation
+    fetchTasks();
     setIsGenerateTasksFormOpen(false);
+  };
+  
+  const fetchTasks = async () => {
+    try {
+      const tasksData = await taskService.getByStatus('pending');
+      
+      // Get today's tasks or upcoming tasks
+      const today = new Date().toISOString().split('T')[0];
+      const upcomingTasks = tasksData
+        .filter(task => !task.due_date || task.due_date >= today)
+        .sort((a, b) => {
+          // First by due date
+          if (a.due_date && b.due_date) {
+            return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+          }
+          if (a.due_date) return -1;
+          if (b.due_date) return 1;
+          
+          // Then by priority
+          return (b.priority_score || 0) - (a.priority_score || 0);
+        })
+        .slice(0, 5); // Just show top 5 upcoming tasks
+        
+      setTasks(upcomingTasks);
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+    }
   };
 
   return (

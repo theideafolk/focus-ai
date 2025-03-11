@@ -75,7 +75,7 @@ export default function ProjectDetails() {
 
   const handleTaskStatusChange = async (taskId: string, status: Task['status']) => {
     try {
-      await taskService.update(taskId, { status });
+      await taskService.updateStatus(taskId, status);
       setTasks(tasks.map(task => 
         task.id === taskId ? { ...task, status } : task
       ));
@@ -190,8 +190,20 @@ export default function ProjectDetails() {
   };
   
   const handleTasksGenerated = (newTasks: Task[]) => {
-    setTasks([...newTasks, ...tasks]);
+    // Refresh the task list to ensure we get the latest data
+    if (id) {
+      fetchTasks(id);
+    }
     setIsGenerateTasksFormOpen(false);
+  };
+  
+  const fetchTasks = async (projectId: string) => {
+    try {
+      const tasksData = await taskService.getByProject(projectId);
+      setTasks(tasksData);
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+    }
   };
 
   if (loading) {

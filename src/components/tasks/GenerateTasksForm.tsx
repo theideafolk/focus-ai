@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, LightbulbIcon, PlusCircle, MinusCircle } from 'lucide-react';
 import { generateTasks, breakdownTask } from '../../services/openaiService';
-import { userSettingsService } from '../../services/supabaseService';
+import { userSettingsService, taskService } from '../../services/supabaseService';
 import type { Project, Task, UserSettings } from '../../types';
 
 interface GenerateTasksFormProps {
@@ -26,6 +26,7 @@ export default function GenerateTasksForm({
   const [generatedTasks, setGeneratedTasks] = useState<Task[]>([]);
   const [isEditingTasks, setIsEditingTasks] = useState(false);
   const [taskBeingBrokenDown, setTaskBeingBrokenDown] = useState<string | null>(null);
+  const [isSavingTasks, setIsSavingTasks] = useState(false);
   
   useEffect(() => {
     if (isOpen) {
@@ -106,10 +107,41 @@ export default function GenerateTasksForm({
     setGeneratedTasks(updatedTasks);
   };
 
-  const handleSubmitTasks = () => {
-    onTasksGenerated(generatedTasks);
-    setGeneratedTasks([]);
-    setIsEditingTasks(false);
+  const handleSubmitTasks = async () => {
+    if (generatedTasks.length === 0) return;
+    
+    setIsSavingTasks(true);
+    setError('');
+    
+    try {
+      // Save all tasks to the database
+      const savedTasks: Task[] = [];
+      
+      for (const task of generatedTasks) {
+        // Prepare task data for saving (omit the temporary ID)
+        const { id, ...taskData } = task;
+        
+        // Create the task in the database
+        const savedTask = await taskService.create(taskData);
+        savedTasks.push(savedTask);
+      }
+      
+      // Pass the saved tasks (with real IDs) back to the parent component
+      onTasksGenerated(savedTasks);
+      
+      // Clear the form
+      setGeneratedTasks([]);
+      setIsEditingTasks(false);
+      setContext('');
+      
+      // Close the modal
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save tasks');
+      console.error('Task saving error:', err);
+    } finally {
+      setIsSavingTasks(false);
+    }
   };
   
   // Get the available workflow stages from user settings
@@ -260,8 +292,11 @@ export default function GenerateTasksForm({
                             type="number"
                             min="0.1"
                             step="0.1"
-                            value={task.estimated_time}
-                            onChange={(e) => handleTaskChange(index, { estimated_time: parseFloat(e.target.value) })}
+                            value={isNaN(task.estimated_time) ? '' : task.estimated_time}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                              handleTaskChange(index, { estimated_time: isNaN(value) ? 1 : value });
+                            }}
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary"
                           />
                         </div>
@@ -288,8 +323,11 @@ export default function GenerateTasksForm({
                             type="number"
                             min="1"
                             max="10"
-                            value={task.priority_score || 5}
-                            onChange={(e) => handleTaskChange(index, { priority_score: parseInt(e.target.value) })}
+                            value={isNaN(task.priority_score) ? 5 : task.priority_score}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? 5 : parseInt(e.target.value);
+                              handleTaskChange(index, { priority_score: isNaN(value) ? 5 : value });
+                            }}
                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary"
                           />
                         </div>
@@ -346,16 +384,17 @@ export default function GenerateTasksForm({
             <button
               onClick={() => setIsEditingTasks(false)}
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
+              disabled={isSavingTasks}
             >
               Back
             </button>
             
             <button
               onClick={handleSubmitTasks}
-              disabled={generatedTasks.length === 0}
+              disabled={generatedTasks.length === 0 || isSavingTasks}
               className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
             >
-              Save Tasks
+              {isSavingTasks ? 'Saving Tasks...' : 'Save Tasks'}
             </button>
           </div>
         )}

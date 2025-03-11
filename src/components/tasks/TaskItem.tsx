@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar, Clock, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import type { Task, Project } from '../../types';
 
@@ -19,6 +19,8 @@ export default function TaskItem({
   hideActions,
   onTimeUpdate 
 }: TaskItemProps) {
+  const [actualTimeInput, setActualTimeInput] = useState(task.actual_time || '');
+  
   const statusColors = {
     pending: 'bg-gray-100 text-gray-700',
     in_progress: 'bg-blue-100 text-blue-700',
@@ -47,6 +49,8 @@ export default function TaskItem({
   };
   
   const handleTimeUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setActualTimeInput(e.target.value);
+    
     if (!onTimeUpdate) return;
     
     const actualTime = parseFloat(e.target.value);
@@ -109,14 +113,14 @@ export default function TaskItem({
             Est: {task.estimated_time} hours
           </span>
           
-          {task.actual_time !== undefined && (
+          {onTimeUpdate !== undefined && (
             <div className="flex items-center">
               <span className="text-xs text-gray-500 mr-2">Actual:</span>
               <input
                 type="number"
                 min="0"
                 step="0.1"
-                value={task.actual_time}
+                value={actualTimeInput}
                 onChange={handleTimeUpdate}
                 className="w-16 text-xs px-1 py-0.5 border border-gray-300 rounded"
                 disabled={!onTimeUpdate}
