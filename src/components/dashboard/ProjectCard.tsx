@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, DollarSign, IndianRupee, PoundSterling, Tag, BarChart2 } from 'lucide-react';
 import type { Project } from '../../types';
 
@@ -9,6 +9,8 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({ project, preferredCurrency = 'USD' }: ProjectCardProps) {
+  const navigate = useNavigate();
+
   // Function to format budget with the appropriate currency
   const formatBudget = (budget?: number) => {
     if (!budget) return null;
@@ -72,10 +74,16 @@ export default function ProjectCard({ project, preferredCurrency = 'USD' }: Proj
     }
   };
 
+  // Handle card click - navigate to project details
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate(`/projects/${project.id}`);
+  };
+
   return (
-    <Link
-      to={`/projects/${project.id}`}
-      className="block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100"
+    <div
+      onClick={handleCardClick}
+      className="block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100 cursor-pointer"
     >
       <div className="flex justify-between items-start">
         <div>
@@ -133,6 +141,6 @@ export default function ProjectCard({ project, preferredCurrency = 'USD' }: Proj
           </div>
         )}
       </div>
-    </Link>
+    </div>
   );
 }

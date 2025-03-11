@@ -18,6 +18,8 @@ export interface Project {
   user_priority?: number; // 1-5 scale
   complexity?: 'easy' | 'medium' | 'hard';
   is_recurring?: boolean;
+  // Document management
+  documents?: ProjectDocument[];
 }
 
 export interface Note {
@@ -86,3 +88,58 @@ export const COMPLEXITY_VALUES: Record<string, number> = {
   'medium': 60,
   'hard': 90
 };
+
+// Document category types
+export type DocumentCategory = 
+  | 'company_overview'
+  | 'product_requirements'
+  | 'technical_documentation'
+  | 'solution_documents'
+  | 'supporting_materials'
+  | 'custom';
+
+// Interface for project documents
+export interface ProjectDocument {
+  id: string;
+  title: string;
+  description?: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  category: DocumentCategory;
+  customCategory?: string; // Used if category is 'custom'
+  uploadedAt: string;
+  version: number;
+  tags: string[];
+}
+
+// Helper function to get category display name
+export function getCategoryDisplayName(category: DocumentCategory): string {
+  switch (category) {
+    case 'company_overview':
+      return 'Company Overview';
+    case 'product_requirements':
+      return 'Product Requirements Document (PRD)';
+    case 'technical_documentation':
+      return 'Technical Documentation';
+    case 'solution_documents':
+      return 'Solution Documents';
+    case 'supporting_materials':
+      return 'Supporting Materials';
+    case 'custom':
+      return 'Custom';
+    default:
+      return 'Uncategorized';
+  }
+}
+
+// Document categories for selection
+export const DOCUMENT_CATEGORIES: Array<{ value: DocumentCategory; label: string }> = [
+  { value: 'company_overview', label: 'Company Overview' },
+  { value: 'product_requirements', label: 'Product Requirements Document (PRD)' },
+  { value: 'technical_documentation', label: 'Technical Documentation' },
+  { value: 'solution_documents', label: 'Solution Documents' },
+  { value: 'supporting_materials', label: 'Supporting Materials' },
+  { value: 'custom', label: 'Custom Category' }
+];

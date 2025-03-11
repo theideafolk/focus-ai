@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, DollarSign, IndianRupee, PoundSterling, Edit, Trash2, ChevronDown, ChevronUp, Plus, FileText, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, IndianRupee, PoundSterling, Edit, Trash2, ChevronDown, ChevronUp, Plus, FileText, CheckCircle2, FileUp } from 'lucide-react';
 import { projectService, taskService, noteService, userSettingsService } from '../services/supabaseService';
+import { documentService } from '../services/documentService';
 import { storeNoteEmbedding } from '../services/openaiService';
-import type { Project, Task, Note, UserSettings } from '../types';
+import type { Project, Task, Note, UserSettings, ProjectDocument } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import TaskList from '../components/tasks/TaskList';
 import ProjectForm from '../components/projects/ProjectForm';
 import NoteForm from '../components/notes/NoteForm';
-import NoteItem from '../components/notes/NoteItem';
 import GenerateTasksForm from '../components/tasks/GenerateTasksForm';
+import DocumentUploader from '../components/documents/DocumentUploader';
+import DocumentList from '../components/documents/DocumentList';
 
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>();
@@ -22,11 +24,13 @@ export default function ProjectDetails() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isNoteFormOpen, setIsNoteFormOpen] = useState(false);
   const [isGenerateTasksFormOpen, setIsGenerateTasksFormOpen] = useState(false);
+  const [isDocumentUploaderOpen, setIsDocumentUploaderOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | undefined>();
   const [expandedDocs, setExpandedDocs] = useState<number[]>([]);
   const [isAddingDoc, setIsAddingDoc] = useState(false);
   const [newDoc, setNewDoc] = useState({ title: '', content: '' });
   const [preferredCurrency, setPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
+  const [activeTab, setActiveTab] = useState<'documents' | 'documentation' | 'notes' | 'tasks'>('tasks');
 
   useEffect(() => {
     if (id) {
@@ -252,6 +256,34 @@ export default function ProjectDetails() {
     }
   };
 
+  // Document upload handlers
+  const handleDocumentUploadComplete = async (document: ProjectDocument) => {
+    if (!project?.id) return;
+    
+    try {
+      await documentService.addDocumentToProject(project.id, document);
+      // Refresh project data to get updated documents
+      const updatedProject = await projectService.getById(project.id);
+      setProject(updatedProject);
+      setIsDocumentUploaderOpen(false);
+    } catch (err) {
+      console.error('Failed to add document to project:', err);
+    }
+  };
+  
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!project?.id || !confirm('Are you sure you want to delete this document?')) return;
+    
+    try {
+      await documentService.removeDocumentFromProject(project.id, documentId);
+      // Refresh project data to get updated documents
+      const updatedProject = await projectService.getById(project.id);
+      setProject(updatedProject);
+    } catch (err) {
+      console.error('Failed to delete document:', err);
+    }
+  };
+
   if (loading) {
     return (
       <PageContainer>
@@ -332,153 +364,291 @@ export default function ProjectDetails() {
               </div>
             </div>
 
-            <div className="mt-8">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-medium text-gray-900">Documentation</h2>
-                <button
-                  onClick={() => setIsAddingDoc(true)}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Document
-                </button>
-              </div>
-
-              {isAddingDoc && (
-                <div className="mb-4 space-y-2 bg-gray-50 p-4 rounded-lg">
-                  <input
-                    type="text"
-                    value={newDoc.title}
-                    onChange={(e) => setNewDoc({ ...newDoc, title: e.target.value })}
-                    placeholder="Document Title"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                  />
-                  <textarea
-                    value={newDoc.content}
-                    onChange={(e) => setNewDoc({ ...newDoc, content: e.target.value })}
-                    placeholder="Document Content"
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddingDoc(false);
-                        setNewDoc({ title: '', content: '' });
-                      }}
-                      className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAddDocument}
-                      disabled={!newDoc.title || !newDoc.content}
-                      className="px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      Add Document
-                    </button>
+            <div>
+              {/* Project Stats */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-blue-500 text-sm font-medium">Tasks</div>
+                  <div className="mt-1 text-2xl font-semibold">{tasks.length}</div>
+                  <div className="mt-1 text-xs text-blue-600">
+                    {tasks.filter(t => t.status === 'completed').length} completed
                   </div>
                 </div>
-              )}
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="text-green-500 text-sm font-medium">Notes</div>
+                  <div className="mt-1 text-2xl font-semibold">{notes.length}</div>
+                  <div className="mt-1 text-xs text-green-600">
+                    {project.documentation?.length || 0} documentation entries
+                  </div>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <div className="text-purple-500 text-sm font-medium">Documents</div>
+                  <div className="mt-1 text-2xl font-semibold">{project.documents?.length || 0}</div>
+                  <div className="mt-1 text-xs text-purple-600">
+                    {project.documents?.reduce((count, doc) => count + doc.tags.length, 0) || 0} tags
+                  </div>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-4">
+                  <div className="text-amber-500 text-sm font-medium">Priority</div>
+                  <div className="mt-1 text-2xl font-semibold">{project.priority_score || 0}</div>
+                  <div className="mt-1 text-xs text-amber-600">
+                    {project.user_priority ? `User priority: ${project.user_priority}/5` : 'Not set'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-              <div className="space-y-4">
-                {project.documentation?.map((doc, index) => (
-                  <div
-                    key={index}
-                    className="bg-gray-50 rounded-lg border border-gray-200"
+          {/* Tabs */}
+          <div className="border-b border-gray-200 mt-8">
+            <nav className="-mb-px flex space-x-6">
+              <button
+                onClick={() => setActiveTab('tasks')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'tasks'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4 inline-block mr-2" />
+                Tasks
+              </button>
+              <button
+                onClick={() => setActiveTab('documents')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'documents'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <FileText className="w-4 h-4 inline-block mr-2" />
+                Documents
+              </button>
+              <button
+                onClick={() => setActiveTab('documentation')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'documentation'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <FileText className="w-4 h-4 inline-block mr-2" />
+                Text Documentation
+              </button>
+              <button
+                onClick={() => setActiveTab('notes')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'notes'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <FileText className="w-4 h-4 inline-block mr-2" />
+                Notes
+              </button>
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          <div className="mt-6">
+            {/* Tasks Tab */}
+            {activeTab === 'tasks' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium text-gray-900">Tasks</h2>
+                  <button
+                    onClick={() => setIsGenerateTasksFormOpen(true)}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
                   >
-                    <div className="px-4 py-3 flex items-center justify-between">
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Generate Tasks
+                  </button>
+                </div>
+                <TaskList
+                  tasks={tasks}
+                  projects={{ [project.id]: project }}
+                  onStatusChange={handleTaskStatusChange}
+                  onDelete={handleTaskDelete}
+                />
+              </div>
+            )}
+
+            {/* Documents Tab */}
+            {activeTab === 'documents' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium text-gray-900">Documents</h2>
+                  <button
+                    onClick={() => setIsDocumentUploaderOpen(true)}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+                  >
+                    <FileUp className="w-4 h-4 mr-2" />
+                    Upload Document
+                  </button>
+                </div>
+                
+                <DocumentList 
+                  documents={project.documents || []}
+                  onDelete={handleDeleteDocument}
+                />
+              </div>
+            )}
+
+            {/* Text Documentation Tab */}
+            {activeTab === 'documentation' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium text-gray-900">Text Documentation</h2>
+                  <button
+                    onClick={() => setIsAddingDoc(true)}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Entry
+                  </button>
+                </div>
+
+                {isAddingDoc && (
+                  <div className="mb-4 space-y-2 bg-gray-50 p-4 rounded-lg">
+                    <input
+                      type="text"
+                      value={newDoc.title}
+                      onChange={(e) => setNewDoc({ ...newDoc, title: e.target.value })}
+                      placeholder="Document Title"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                    />
+                    <textarea
+                      value={newDoc.content}
+                      onChange={(e) => setNewDoc({ ...newDoc, content: e.target.value })}
+                      placeholder="Document Content"
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                    />
+                    <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => setExpandedDocs(prev => 
-                          prev.includes(index)
-                            ? prev.filter(i => i !== index)
-                            : [...prev, index]
-                        )}
-                        className="flex-1 text-left font-medium text-gray-900"
+                        type="button"
+                        onClick={() => {
+                          setIsAddingDoc(false);
+                          setNewDoc({ title: '', content: '' });
+                        }}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
                       >
-                        {doc.title}
-                        {expandedDocs.includes(index) ? (
-                          <ChevronUp className="w-4 h-4 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-500" />
-                        )}
+                        Cancel
                       </button>
                       <button
-                        onClick={() => handleRemoveDocument(index)}
-                        className="ml-2 text-gray-400 hover:text-red-500 transition-colors"
+                        type="button"
+                        onClick={handleAddDocument}
+                        disabled={!newDoc.title || !newDoc.content}
+                        className="px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        Add Document
                       </button>
                     </div>
-                    {expandedDocs.includes(index) && (
-                      <div className="px-4 pb-4">
-                        <p className="text-gray-600 whitespace-pre-wrap">{doc.content}</p>
-                      </div>
-                    )}
                   </div>
-                ))}
-                {(!project.documentation || project.documentation.length === 0) && !isAddingDoc && (
-                  <p className="text-center text-gray-500 py-4">
-                    No documentation yet. Click "Add Document" to get started.
-                  </p>
                 )}
-              </div>
-            </div>
 
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-medium text-gray-900">Tasks</h2>
-                <button
-                  onClick={() => setIsGenerateTasksFormOpen(true)}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Generate Tasks
-                </button>
+                <div className="space-y-4">
+                  {project.documentation?.map((doc, index) => (
+                    <div
+                      key={index}
+                      className="bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <button
+                          onClick={() => setExpandedDocs(prev => 
+                            prev.includes(index)
+                              ? prev.filter(i => i !== index)
+                              : [...prev, index]
+                          )}
+                          className="flex-1 text-left font-medium text-gray-900 flex items-center"
+                        >
+                          {doc.title}
+                          {expandedDocs.includes(index) ? (
+                            <ChevronUp className="w-4 h-4 text-gray-500 ml-2" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-500 ml-2" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleRemoveDocument(index)}
+                          className="ml-2 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {expandedDocs.includes(index) && (
+                        <div className="px-4 pb-4">
+                          <p className="text-gray-600 whitespace-pre-wrap">{doc.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {(!project.documentation || project.documentation.length === 0) && !isAddingDoc && (
+                    <p className="text-center text-gray-500 py-4">
+                      No documentation yet. Click "Add Entry" to get started.
+                    </p>
+                  )}
+                </div>
               </div>
-              <TaskList
-                tasks={tasks}
-                projects={{ [project.id]: project }}
-                onStatusChange={handleTaskStatusChange}
-                onDelete={handleTaskDelete}
-              />
-            </div>
+            )}
 
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-medium text-gray-900">Notes</h2>
-                <button
-                  onClick={() => setIsNoteFormOpen(true)}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Add Note
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                {notes.map(note => (
-                  <NoteItem
-                    key={note.id}
-                    note={note}
-                    onEdit={handleEditNote}
-                    onDelete={handleDeleteNote}
-                  />
-                ))}
+            {/* Notes Tab */}
+            {activeTab === 'notes' && (
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium text-gray-900">Notes</h2>
+                  <button
+                    onClick={() => setIsNoteFormOpen(true)}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Add Note
+                  </button>
+                </div>
                 
-                {notes.length === 0 && (
-                  <p className="text-center text-gray-500 py-4">
-                    No notes for this project yet. Click "Add Note" to get started.
-                  </p>
-                )}
+                <div className="space-y-4">
+                  {notes.map(note => (
+                    <div key={note.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <span className="text-xs text-gray-500">
+                            {new Date(note.created_at).toLocaleDateString()}
+                          </span>
+                          <p className="text-gray-800 whitespace-pre-wrap">{note.content}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditNote(note)}
+                            className="p-1 text-gray-400 hover:text-primary transition-colors"
+                            aria-label="Edit note"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            aria-label="Delete note"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {notes.length === 0 && (
+                    <p className="text-center text-gray-500 py-4">
+                      No notes for this project yet. Click "Add Note" to get started.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Modals */}
       <ProjectForm
         project={project}
         isOpen={isFormOpen}
@@ -500,6 +670,14 @@ export default function ProjectDetails() {
         projects={[project]}
         onTasksGenerated={handleTasksGenerated}
       />
+
+      {isDocumentUploaderOpen && (
+        <DocumentUploader
+          projectId={project.id}
+          onUploadComplete={handleDocumentUploadComplete}
+          onCancel={() => setIsDocumentUploaderOpen(false)}
+        />
+      )}
     </PageContainer>
   );
 }
