@@ -21,7 +21,7 @@ export default function TaskItem({
   onTimeUpdate,
   onEdit
 }: TaskItemProps) {
-  const [actualTimeInput, setActualTimeInput] = useState(task.actual_time || '');
+  const [actualTimeInput, setActualTimeInput] = useState(task.actual_time?.toString() || '');
   
   const statusColors = {
     pending: 'bg-gray-100 text-gray-700',
@@ -45,7 +45,9 @@ export default function TaskItem({
   
   const handleStatusToggle = () => {
     if (!onStatusChange) return;
+    console.log('Toggling task status:', task.id);
     
+    // Immediately update the UI optimistically
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
     onStatusChange(task.id, newStatus);
   };
@@ -61,12 +63,28 @@ export default function TaskItem({
     }
   };
   
+  const handleDelete = () => {
+    if (onDelete) {
+      console.log('Delete button clicked for task:', task.id);
+      onDelete(task.id);
+    }
+  };
+  
+  const handleEdit = () => {
+    if (onEdit) {
+      console.log('Edit button clicked for task:', task.id);
+      onEdit(task);
+    }
+  };
+  
   return (
     <div className="flex gap-4">
       {onStatusChange && (
         <button
           onClick={handleStatusToggle}
           className="mt-1 text-gray-400 hover:text-primary transition-colors flex-shrink-0"
+          type="button"
+          aria-label={task.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}
         >
           {task.status === 'completed' ? (
             <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -144,9 +162,10 @@ export default function TaskItem({
         <div className="flex gap-1">
           {onEdit && (
             <button
-              onClick={() => onEdit(task)}
+              onClick={handleEdit}
               className="text-gray-400 hover:text-primary transition-colors"
               aria-label="Edit task"
+              type="button"
             >
               <Edit className="w-4 h-4" />
             </button>
@@ -154,9 +173,10 @@ export default function TaskItem({
           
           {onDelete && (
             <button
-              onClick={() => onDelete(task.id)}
+              onClick={handleDelete}
               className="text-gray-400 hover:text-red-500 transition-colors"
               aria-label="Delete task"
+              type="button"
             >
               <Trash2 className="w-4 h-4" />
             </button>

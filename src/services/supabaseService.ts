@@ -67,7 +67,10 @@ export const noteService = {
       .insert({ ...note, user_id: user.id })
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating note:', error);
+      throw error;
+    }
     return data;
   },
 
@@ -97,7 +100,10 @@ export const noteService = {
       .eq('id', id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating note:', error);
+      throw error;
+    }
     return data;
   },
 
@@ -119,13 +125,27 @@ export const noteService = {
 // Tasks
 export const taskService = {
   async create(task: Partial<Task>) {
-    const { data, error } = await supabase
-      .from('tasks')
-      .insert(task)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    // Add logging to help debug task creation issues
+    console.log('Creating task:', task);
+    
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert(task)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Failed to create task:', error);
+        throw error;
+      }
+      
+      console.log('Task created successfully:', data);
+      return data;
+    } catch (err) {
+      console.error('Task creation error:', err);
+      throw err;
+    }
   },
 
   async getAll() {
@@ -164,7 +184,10 @@ export const taskService = {
       .eq('id', id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      console.error('Failed to update task:', error);
+      throw error;
+    }
     return data;
   },
 

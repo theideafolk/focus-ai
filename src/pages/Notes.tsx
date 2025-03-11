@@ -152,8 +152,11 @@ export default function Notes() {
     setIsFormOpen(true);
   };
   
+  // Handler for opening the note form with a clean interface
   const handleOpenNewNoteForm = () => {
-    setSelectedNote(undefined); // Clear any previously selected note
+    // Clear any previously selected note
+    setSelectedNote(undefined);
+    // Open the form modal
     setIsFormOpen(true);
   };
   

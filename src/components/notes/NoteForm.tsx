@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import type { Note, Project } from '../../types';
 
@@ -14,20 +14,57 @@ export default function NoteForm({ note, projects, onSubmit, onClose, isOpen }: 
   const [formData, setFormData] = useState<Partial<Note>>({
     content: '',
     project_id: undefined,
-    ...note,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const [formInitialized, setFormInitialized] = useState(false);
 
+  // Initialize form data when the modal opens or note changes
   useEffect(() => {
-    if (note) {
-      setFormData({
-        content: '',
-        project_id: undefined,
-        ...note,
-      });
+    if (isOpen) {
+      if (note) {
+        // Editing existing note - load its data
+        setFormData({
+          content: note.content || '',
+          project_id: note.project_id,
+        });
+      } else {
+        // Creating new note - clear form
+        setFormData({
+          content: '',
+          project_id: undefined,
+        });
+      }
+      
+      // Mark form as initialized for focus
+      setFormInitialized(true);
+      
+      // Clear any previous errors
+      setError('');
     }
-  }, [note]);
+  }, [isOpen, note]);
+
+  // Focus on the content field when form is initialized
+  useEffect(() => {
+    if (isOpen && formInitialized && contentRef.current) {
+      // Small delay to ensure the DOM is ready
+      const focusTimer = setTimeout(() => {
+        if (contentRef.current) {
+          contentRef.current.focus();
+        }
+      }, 50);
+      
+      return () => clearTimeout(focusTimer);
+    }
+  }, [isOpen, formInitialized]);
+
+  // Reset form state when closed
+  useEffect(() => {
+    if (!isOpen) {
+      setFormInitialized(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -37,13 +74,19 @@ export default function NoteForm({ note, projects, onSubmit, onClose, isOpen }: 
     setError('');
 
     try {
+      console.log('Submitting note form:', formData);
       await onSubmit(formData);
-      onClose();
+      // Form will be closed by the parent component
     } catch (err) {
+      console.error('Note form submission error:', err);
       setError(err instanceof Error ? err.message : 'Failed to save note');
-    } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleClose = () => {
+    console.log('Closing note form');
+    onClose();
   };
 
   return (
@@ -54,8 +97,9 @@ export default function NoteForm({ note, projects, onSubmit, onClose, isOpen }: 
             {note ? 'Edit Note' : 'New Note'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-500 transition-colors"
+            type="button"
           >
             <X className="w-5 h-5" />
           </button>
@@ -98,6 +142,7 @@ export default function NoteForm({ note, projects, onSubmit, onClose, isOpen }: 
               id="content"
               required
               rows={10}
+              ref={contentRef}
               value={formData.content || ''}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
@@ -108,7 +153,7 @@ export default function NoteForm({ note, projects, onSubmit, onClose, isOpen }: 
           <div className="flex justify-end gap-3 pt-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
               disabled={isSubmitting}
             >

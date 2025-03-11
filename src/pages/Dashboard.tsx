@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [projectsMap, setProjectsMap] = useState<Record<string, Project>>({});
   const [isNoteFormOpen, setIsNoteFormOpen] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<Note | undefined>();
+  const [selectedNote, setSelectedNote] = useState<Note | undefined>(undefined);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [preferredCurrency, setPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
 
@@ -96,7 +96,10 @@ export default function Dashboard() {
 
   const handleTaskStatusChange = async (taskId: string, status: Task['status']) => {
     try {
+      console.log('Changing task status:', taskId, status);
       await taskService.updateStatus(taskId, status);
+      
+      // Update the local state immediately
       setTasks(tasks.map(task => 
         task.id === taskId ? { ...task, status } : task
       ));
@@ -137,18 +140,22 @@ export default function Dashboard() {
         n.id === updatedNote.id ? updatedNote : n
       ));
       
-      setIsNoteFormOpen(false);
-      setSelectedNote(undefined);
-      
       return updatedNote;
     } catch (err) {
       console.error('Failed to update note:', err);
       throw new Error('Failed to update note');
+    } finally {
+      // Always close the form and clear selected note
+      setIsNoteFormOpen(false);
+      setSelectedNote(undefined);
     }
   };
   
   const handleNoteClick = (note: Note) => {
+    console.log('Note clicked:', note.id);
+    // First set the selected note
     setSelectedNote(note);
+    // Then open the form modal
     setIsNoteFormOpen(true);
   };
   
@@ -156,6 +163,7 @@ export default function Dashboard() {
     if (!confirm('Are you sure you want to delete this task?')) return;
     
     try {
+      console.log('Deleting task:', taskId);
       await taskService.delete(taskId);
       setTasks(tasks.filter(task => task.id !== taskId));
     } catch (err) {
@@ -175,6 +183,21 @@ export default function Dashboard() {
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
+
+  // Create new note with a clean interface
+  const handleCreateNewNote = () => {
+    console.log('Creating new note');
+    // Reset the selected note to ensure form starts fresh
+    setSelectedNote(undefined);
+    // Open the form modal with a small delay to ensure state is updated
+    setTimeout(() => setIsNoteFormOpen(true), 0);
+  };
+
+  // Close note form and reset
+  const handleCloseNoteForm = () => {
+    setIsNoteFormOpen(false);
+    setSelectedNote(undefined);
+  };
 
   return (
     <PageContainer>
@@ -248,10 +271,7 @@ export default function Dashboard() {
                 </h2>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      setSelectedNote(undefined);
-                      setIsNoteFormOpen(true);
-                    }}
+                    onClick={handleCreateNewNote}
                     className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white hover:bg-primary-dark transition-colors"
                     aria-label="Add note"
                     title="Add note"
@@ -275,10 +295,7 @@ export default function Dashboard() {
                     <FileText className="w-8 h-8 mx-auto text-gray-400 mb-2" />
                     <p className="text-gray-500">No notes yet. Add your first note to get started.</p>
                     <button
-                      onClick={() => {
-                        setSelectedNote(undefined);
-                        setIsNoteFormOpen(true);
-                      }}
+                      onClick={handleCreateNewNote}
                       className="mt-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
                     >
                       <Plus className="w-4 h-4 mr-1.5" />
@@ -350,10 +367,7 @@ export default function Dashboard() {
       <NoteForm
         note={selectedNote}
         isOpen={isNoteFormOpen}
-        onClose={() => {
-          setIsNoteFormOpen(false);
-          setSelectedNote(undefined);
-        }}
+        onClose={handleCloseNoteForm}
         onSubmit={selectedNote ? handleUpdateNote : handleCreateNote}
         projects={projects}
       />

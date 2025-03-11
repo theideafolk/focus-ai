@@ -209,6 +209,13 @@ export default function ProjectDetails() {
     }
   };
 
+  // Handler for opening a clean note form
+  const handleOpenNewNoteForm = () => {
+    // Reset selected note to ensure form starts fresh
+    setSelectedNote(undefined);
+    setIsNoteFormOpen(true);
+  };
+
   const handleCreateNote = async (note: Partial<Note>) => {
     if (!project?.id) return;
 
@@ -644,7 +651,7 @@ export default function ProjectDetails() {
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-medium text-gray-900">Notes</h2>
                   <button
-                    onClick={() => setIsNoteFormOpen(true)}
+                    onClick={handleOpenNewNoteForm}
                     className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
                   >
                     <FileText className="w-4 h-4 mr-2" />

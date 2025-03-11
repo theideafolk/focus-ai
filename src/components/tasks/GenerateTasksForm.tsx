@@ -114,16 +114,39 @@ export default function GenerateTasksForm({
     setError('');
     
     try {
+      console.log('Saving tasks:', generatedTasks);
+      
+      // Ensure project_id is set on all tasks
+      if (projectId && generatedTasks.some(task => !task.project_id)) {
+        console.log('Setting project_id on tasks that need it');
+        setGeneratedTasks(generatedTasks.map(task => ({
+          ...task,
+          project_id: task.project_id || projectId
+        })));
+      }
+      
       // Save all tasks to the database
       const savedTasks: Task[] = [];
       
       for (const task of generatedTasks) {
+        // Validate the task has a project_id
+        if (!task.project_id) {
+          throw new Error('Task must have a project_id');
+        }
+        
         // Prepare task data for saving (omit the temporary ID)
         const { id, ...taskData } = task;
         
-        // Create the task in the database
-        const savedTask = await taskService.create(taskData);
-        savedTasks.push(savedTask);
+        console.log('Saving task:', taskData);
+        
+        try {
+          // Create the task in the database
+          const savedTask = await taskService.create(taskData);
+          savedTasks.push(savedTask);
+        } catch (err) {
+          console.error('Failed to save task:', err, 'Task data:', taskData);
+          throw new Error(`Failed to save task: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
       }
       
       // Pass the saved tasks (with real IDs) back to the parent component
@@ -137,8 +160,8 @@ export default function GenerateTasksForm({
       // Close the modal
       onClose();
     } catch (err) {
+      console.error('Error saving tasks:', err);
       setError(err instanceof Error ? err.message : 'Failed to save tasks');
-      console.error('Task saving error:', err);
     } finally {
       setIsSavingTasks(false);
     }
@@ -354,6 +377,29 @@ export default function GenerateTasksForm({
                         )}
                       </div>
                       
+                      {/* If selecting a project is optional, we need to make sure project_id is set */}
+                      {!projectId && (
+                        <div>
+                          <label htmlFor={`task-${index}-project`} className="block text-xs text-gray-500 mb-1">
+                            Project *
+                          </label>
+                          <select
+                            id={`task-${index}-project`}
+                            value={task.project_id || ''}
+                            onChange={(e) => handleTaskChange(index, { project_id: e.target.value })}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary"
+                            required
+                          >
+                            <option value="">Select a project</option>
+                            {projects.map((project) => (
+                              <option key={project.id} value={project.id}>
+                                {project.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      
                       <button
                         onClick={() => handleTaskBreakdown(index)}
                         disabled={taskBeingBrokenDown === task.id}
@@ -391,7 +437,8 @@ export default function GenerateTasksForm({
             
             <button
               onClick={handleSubmitTasks}
-              disabled={generatedTasks.length === 0 || isSavingTasks}
+              disabled={generatedTasks.length === 0 || isSavingTasks || 
+                (projectId === '' && generatedTasks.some(task => !task.project_id))}
               className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
             >
               {isSavingTasks ? 'Saving Tasks...' : 'Save Tasks'}

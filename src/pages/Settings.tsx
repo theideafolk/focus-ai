@@ -85,10 +85,13 @@ export default function Settings() {
         }
         
         // Parse general settings
+        const maxHours = data.workflow?.maxDailyHours !== undefined ? 
+          Number(data.workflow.maxDailyHours) : 8;
+          
         setGeneralSettings({
           displayName: data.workflow?.displayName || '',
-          maxDailyHours: data.workflow?.maxDailyHours || 8,
-          workDays: data.workflow?.workDays || [1, 2, 3, 4, 5],
+          maxDailyHours: !isNaN(maxHours) ? maxHours : 8, // Default to 8 if NaN
+          workDays: Array.isArray(data.workflow?.workDays) ? data.workflow.workDays : [1, 2, 3, 4, 5],
           preferredCurrency: data.workflow?.preferredCurrency || 'USD',
         });
       }
@@ -287,8 +290,14 @@ export default function Settings() {
                 id="maxDailyHours"
                 min="1"
                 max="24"
-                value={generalSettings.maxDailyHours}
-                onChange={(e) => setGeneralSettings({ ...generalSettings, maxDailyHours: parseInt(e.target.value) })}
+                value={generalSettings.maxDailyHours.toString()}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  setGeneralSettings({
+                    ...generalSettings,
+                    maxDailyHours: isNaN(value) ? 8 : value
+                  });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -487,8 +496,8 @@ export default function Settings() {
                     id="skillProficiency"
                     min="1"
                     max="5"
-                    value={newSkill.proficiency}
-                    onChange={(e) => setNewSkill({ ...newSkill, proficiency: parseInt(e.target.value) })}
+                    value={newSkill.proficiency.toString()}
+                    onChange={(e) => setNewSkill({ ...newSkill, proficiency: parseInt(e.target.value, 10) || 3 })}
                     className="flex-1"
                   />
                   <span className="text-sm text-gray-700 w-6 text-center">{newSkill.proficiency}</span>
