@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { projectService } from '../services/supabaseService';
-import type { Project } from '../types';
+import { projectService, userSettingsService } from '../services/supabaseService';
+import type { Project, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import ProjectList from '../components/projects/ProjectList';
 import ProjectForm from '../components/projects/ProjectForm';
@@ -12,9 +12,11 @@ export default function Projects() {
   const [error, setError] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
+  const [preferredCurrency, setPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
 
   useEffect(() => {
     fetchProjects();
+    fetchUserSettings();
   }, []);
 
   const fetchProjects = async () => {
@@ -26,6 +28,17 @@ export default function Projects() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const fetchUserSettings = async () => {
+    try {
+      const settings = await userSettingsService.get();
+      if (settings?.workflow?.preferredCurrency) {
+        setPreferredCurrency(settings.workflow.preferredCurrency);
+      }
+    } catch (err) {
+      console.error('Failed to load user settings:', err);
     }
   };
 
@@ -110,6 +123,7 @@ export default function Projects() {
           onEdit={handleEdit}
           onDelete={handleDeleteProject}
           isLoading={loading}
+          preferredCurrency={preferredCurrency}
         />
 
         <ProjectForm

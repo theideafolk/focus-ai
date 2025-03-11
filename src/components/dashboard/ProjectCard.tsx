@@ -1,13 +1,53 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, DollarSign } from 'lucide-react';
+import { Calendar, DollarSign, IndianRupee, PoundSterling } from 'lucide-react';
 import type { Project } from '../../types';
 
 interface ProjectCardProps {
   project: Project;
+  preferredCurrency?: 'USD' | 'INR' | 'GBP';
 }
 
-export default function ProjectCard({ project }: ProjectCardProps) {
+export default function ProjectCard({ project, preferredCurrency = 'USD' }: ProjectCardProps) {
+  // Function to format budget with the appropriate currency
+  const formatBudget = (budget?: number) => {
+    if (!budget) return null;
+    
+    // Use project's own currency if available, otherwise use preferred currency
+    const currency = project.currency || preferredCurrency;
+    
+    if (currency === 'INR') {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+      }).format(budget);
+    } else if (currency === 'GBP') {
+      return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP'
+      }).format(budget);
+    } else {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(budget);
+    }
+  };
+
+  // Get the currency icon
+  const getCurrencyIcon = () => {
+    const currency = project.currency || preferredCurrency;
+    
+    if (currency === 'INR') {
+      return <IndianRupee className="w-4 h-4 mr-2" />;
+    } else if (currency === 'GBP') {
+      return <PoundSterling className="w-4 h-4 mr-2" />;
+    } else {
+      return <DollarSign className="w-4 h-4 mr-2" />;
+    }
+  };
+
   return (
     <Link
       to={`/projects/${project.id}`}
@@ -38,8 +78,8 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         
         {project.budget && (
           <div className="flex items-center text-sm text-gray-500">
-            <DollarSign className="w-4 h-4 mr-2" />
-            <span>{project.budget.toLocaleString()}</span>
+            {getCurrencyIcon()}
+            <span>{formatBudget(project.budget)}</span>
           </div>
         )}
       </div>

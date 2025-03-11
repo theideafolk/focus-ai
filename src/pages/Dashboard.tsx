@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { projectService, taskService } from '../services/supabaseService';
-import type { Project, Task } from '../types';
+import { projectService, taskService, userSettingsService } from '../services/supabaseService';
+import type { Project, Task, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import ProjectCard from '../components/dashboard/ProjectCard';
 import TaskList from '../components/dashboard/TaskList';
@@ -16,50 +16,62 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isGenerateTasksFormOpen, setIsGenerateTasksFormOpen] = useState(false);
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [preferredCurrency, setPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [projectsData, tasksData] = await Promise.all([
-          projectService.getAll(),
-          taskService.getByStatus('pending'),
-        ]);
-
-        // Sort projects by priority
-        const sortedProjects = [...projectsData].sort((a, b) => 
-          (b.priority_score || 0) - (a.priority_score || 0)
-        );
-        
-        setProjects(sortedProjects.slice(0, 3)); // Show top 3 projects by priority
-        
-        // Get today's tasks or upcoming tasks
-        const today = new Date().toISOString().split('T')[0];
-        const upcomingTasks = tasksData
-          .filter(task => !task.due_date || task.due_date >= today)
-          .sort((a, b) => {
-            // First by due date
-            if (a.due_date && b.due_date) {
-              return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-            }
-            if (a.due_date) return -1;
-            if (b.due_date) return 1;
-            
-            // Then by priority
-            return (b.priority_score || 0) - (a.priority_score || 0);
-          })
-          .slice(0, 5); // Just show top 5 upcoming tasks
-          
-        setTasks(upcomingTasks);
-      } catch (err) {
-        setError('Failed to load dashboard data');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [projectsData, tasksData, settings] = await Promise.all([
+        projectService.getAll(),
+        taskService.getByStatus('pending'),
+        userSettingsService.get(),
+      ]);
+
+      // Sort projects by priority
+      const sortedProjects = [...projectsData].sort((a, b) => 
+        (b.priority_score || 0) - (a.priority_score || 0)
+      );
+      
+      setProjects(sortedProjects.slice(0, 3)); // Show top 3 projects by priority
+      
+      // Get today's tasks or upcoming tasks
+      const today = new Date().toISOString().split('T')[0];
+      const upcomingTasks = tasksData
+        .filter(task => !task.due_date || task.due_date >= today)
+        .sort((a, b) => {
+          // First by due date
+          if (a.due_date && b.due_date) {
+            return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+          }
+          if (a.due_date) return -1;
+          if (b.due_date) return 1;
+          
+          // Then by priority
+          return (b.priority_score || 0) - (a.priority_score || 0);
+        })
+        .slice(0, 5); // Just show top 5 upcoming tasks
+        
+      setTasks(upcomingTasks);
+      
+      // Set user settings and preferred currency
+      if (settings) {
+        setUserSettings(settings);
+        if (settings.workflow?.preferredCurrency) {
+          setPreferredCurrency(settings.workflow.preferredCurrency);
+        }
+      }
+    } catch (err) {
+      setError('Failed to load dashboard data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTaskStatusChange = async (taskId: string, status: Task['status']) => {
     try {
@@ -104,6 +116,19 @@ export default function Dashboard() {
       console.error('Failed to fetch tasks:', err);
     }
   };
+  
+  // Add focus listener to refresh data when tab gets focus (like when returning from project edit)
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchDashboardData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   return (
     <PageContainer>
@@ -145,7 +170,11 @@ export default function Dashboard() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {projects.map(project => (
-                  <ProjectCard key={project.id} project={project} />
+                  <ProjectCard 
+                    key={project.id} 
+                    project={project}
+                    preferredCurrency={preferredCurrency}
+                  />
                 ))}
                 {projects.length === 0 && (
                   <p className="text-gray-500 col-span-full py-4 text-center">

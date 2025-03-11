@@ -7,6 +7,7 @@ export interface Project {
   start_date?: string;
   end_date?: string;
   budget?: number;
+  currency?: 'USD' | 'INR' | 'GBP'; // Currency for this specific project
   priority_score?: number;
   documentation?: Array<{ title: string; content: string; }>;
   created_at: string;
@@ -49,6 +50,7 @@ export interface UserSettings {
     workDays?: number[];
     goals?: any[];
     stages?: any[];
+    preferredCurrency?: 'USD' | 'INR' | 'GBP'; // Default currency preference for user
   };
   created_at: string;
   updated_at: string;

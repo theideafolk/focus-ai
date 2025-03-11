@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Briefcase, FileText, Settings, CheckCircle, LightbulbIcon } from 'lucide-react';
+import { Home, Briefcase, FileText, Settings, CheckCircle, LogOut } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Navbar() {
   const location = useLocation();
+  const { signOut } = useAuth();
   
   const isActive = (path: string) => location.pathname === path;
   
@@ -12,9 +14,12 @@ export default function Navbar() {
     { path: '/projects', icon: Briefcase, label: 'Projects' },
     { path: '/tasks', icon: CheckCircle, label: 'Tasks' },
     { path: '/notes', icon: FileText, label: 'Notes' },
-    { path: '/ai-recommendations', icon: LightbulbIcon, label: 'AI Focus' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
+
+  const handleLogout = async () => {
+    await signOut();
+  };
 
   return (
     <nav className="bg-white border-b border-gray-200">
@@ -41,12 +46,23 @@ export default function Navbar() {
               ))}
             </div>
           </div>
+          
+          <div className="flex items-center">
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 hover:text-primary transition-colors"
+              aria-label="Log out"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Log out
+            </button>
+          </div>
         </div>
       </div>
       
       {/* Mobile navigation */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-        <div className="grid grid-cols-6 h-16">
+        <div className="grid grid-cols-5 h-16">
           {links.map(({ path, icon: Icon, label }) => (
             <Link
               key={path}

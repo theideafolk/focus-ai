@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { userSettingsService } from '../services/supabaseService';
@@ -38,7 +38,14 @@ export default function Login() {
         if (signInError) throw signInError;
       }
 
-      navigate('/dashboard');
+      // Check if there's a saved path to redirect to
+      const savedPath = sessionStorage.getItem('initialPath');
+      if (savedPath && savedPath !== '/login' && savedPath !== '/') {
+        navigate(savedPath);
+        sessionStorage.removeItem('initialPath');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

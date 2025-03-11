@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
-import type { Project } from '../../types';
+import { X, ChevronDown, ChevronUp, Plus, Trash2, DollarSign, IndianRupee, PoundSterling } from 'lucide-react';
+import { userSettingsService } from '../../services/supabaseService';
+import type { Project, UserSettings } from '../../types';
 
 interface ProjectFormProps {
   project?: Partial<Project>;
@@ -17,10 +18,12 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
     start_date: '',
     end_date: '',
     budget: undefined,
+    currency: 'USD', // Default currency
     ...project,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [userPreferredCurrency, setUserPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
 
   useEffect(() => {
     if (project) {
@@ -31,10 +34,33 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
         start_date: '',
         end_date: '',
         budget: undefined,
+        currency: 'USD', // Default currency
         ...project,
       });
     }
-  }, [project]);
+    
+    // Fetch user's currency preference
+    const fetchSettings = async () => {
+      try {
+        const settings = await userSettingsService.get();
+        if (settings && settings.workflow?.preferredCurrency) {
+          setUserPreferredCurrency(settings.workflow.preferredCurrency);
+          
+          // If creating a new project, use the user's preferred currency as default
+          if (!project?.id && !project?.currency) {
+            setFormData(prev => ({
+              ...prev,
+              currency: settings.workflow.preferredCurrency
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load settings:', err);
+      }
+    };
+    
+    fetchSettings();
+  }, [project, isOpen]);
 
   if (!isOpen) return null;
 
@@ -52,13 +78,42 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
       setIsSubmitting(false);
     }
   };
+  
+  // Handle currency change
+  const handleCurrencyChange = (currency: 'USD' | 'INR' | 'GBP') => {
+    setFormData({
+      ...formData,
+      currency
+    });
+  };
+  
+  // Format the budget input for display
+  const formatBudget = (value: number) => {
+    if (formData.currency === 'INR') {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+      }).format(value);
+    } else if (formData.currency === 'GBP') {
+      return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP'
+      }).format(value);
+    } else {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(value);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <h2 className="text-xl font-medium text-gray-900">
-            {project ? 'Edit Project' : 'New Project'}
+            {project?.id ? 'Edit Project' : 'New Project'}
           </h2>
           <button
             onClick={onClose}
@@ -144,8 +199,59 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
           </div>
 
           <div>
-            <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-1">
-              Budget
+            <span className="block text-sm font-medium text-gray-700 mb-2">
+              Budget Currency
+            </span>
+            <div className="flex space-x-4 mb-4">
+              <button
+                type="button"
+                onClick={() => handleCurrencyChange('USD')}
+                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                  formData.currency === 'USD'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                USD
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCurrencyChange('INR')}
+                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                  formData.currency === 'INR'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <IndianRupee className="w-4 h-4 mr-2" />
+                INR
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCurrencyChange('GBP')}
+                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                  formData.currency === 'GBP'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <PoundSterling className="w-4 h-4 mr-2" />
+                GBP
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="budget" className="flex items-center text-sm font-medium text-gray-700 mb-1">
+              Budget 
+              {formData.currency === 'INR' ? (
+                <IndianRupee className="w-4 h-4 ml-1" />
+              ) : formData.currency === 'GBP' ? (
+                <PoundSterling className="w-4 h-4 ml-1" />
+              ) : (
+                <DollarSign className="w-4 h-4 ml-1" />
+              )}
             </label>
             <input
               type="number"
@@ -155,7 +261,13 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
               value={formData.budget || ''}
               onChange={(e) => setFormData({ ...formData, budget: parseFloat(e.target.value) })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+              placeholder={`Enter ${formData.currency} value`}
             />
+            {formData.budget && (
+              <p className="text-xs text-gray-500 mt-1">
+                Formatted: {formatBudget(Number(formData.budget))}
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
@@ -172,7 +284,7 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
               disabled={isSubmitting}
               className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
             >
-              {isSubmitting ? 'Saving...' : project ? 'Save Changes' : 'Create Project'}
+              {isSubmitting ? 'Saving...' : project?.id ? 'Save Changes' : 'Create Project'}
             </button>
           </div>
         </form>

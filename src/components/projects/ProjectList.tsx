@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, DollarSign, Trash2, Edit } from 'lucide-react';
+import { Calendar, DollarSign, PoundSterling, IndianRupee, Trash2, Edit } from 'lucide-react';
 import type { Project } from '../../types';
 
 interface ProjectListProps {
@@ -8,9 +8,48 @@ interface ProjectListProps {
   onEdit: (project: Project) => void;
   onDelete: (projectId: string) => void;
   isLoading?: boolean;
+  preferredCurrency?: 'USD' | 'INR' | 'GBP';
 }
 
-export default function ProjectList({ projects, onEdit, onDelete, isLoading }: ProjectListProps) {
+export default function ProjectList({ projects, onEdit, onDelete, isLoading, preferredCurrency = 'USD' }: ProjectListProps) {
+  const formatBudget = (project: Project) => {
+    if (!project.budget) return null;
+    
+    // Use project's own currency if available, otherwise use preferred currency
+    const currency = project.currency || preferredCurrency;
+    
+    if (currency === 'INR') {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+      }).format(project.budget);
+    } else if (currency === 'GBP') {
+      return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP'
+      }).format(project.budget);
+    } else {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(project.budget);
+    }
+  };
+
+  // Get the currency icon
+  const getCurrencyIcon = (project: Project) => {
+    const currency = project.currency || preferredCurrency;
+    
+    if (currency === 'INR') {
+      return <IndianRupee className="w-4 h-4 mr-2" />;
+    } else if (currency === 'GBP') {
+      return <PoundSterling className="w-4 h-4 mr-2" />;
+    } else {
+      return <DollarSign className="w-4 h-4 mr-2" />;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -70,8 +109,8 @@ export default function ProjectList({ projects, onEdit, onDelete, isLoading }: P
               
               {project.budget && (
                 <div className="flex items-center text-sm text-gray-500">
-                  <DollarSign className="w-4 h-4 mr-2" />
-                  <span>{project.budget.toLocaleString()}</span>
+                  {getCurrencyIcon(project)}
+                  <span>{formatBudget(project)}</span>
                 </div>
               )}
             </div>

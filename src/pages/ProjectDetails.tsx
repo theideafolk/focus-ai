@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, ChevronDown, ChevronUp, Plus, FileText, CheckCircle2 } from 'lucide-react';
-import { projectService, taskService, noteService } from '../services/supabaseService';
+import { ArrowLeft, Calendar, DollarSign, IndianRupee, PoundSterling, Edit, Trash2, ChevronDown, ChevronUp, Plus, FileText, CheckCircle2 } from 'lucide-react';
+import { projectService, taskService, noteService, userSettingsService } from '../services/supabaseService';
 import { storeNoteEmbedding } from '../services/openaiService';
-import type { Project, Task, Note } from '../types';
+import type { Project, Task, Note, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import TaskList from '../components/tasks/TaskList';
 import ProjectForm from '../components/projects/ProjectForm';
@@ -26,6 +26,7 @@ export default function ProjectDetails() {
   const [expandedDocs, setExpandedDocs] = useState<number[]>([]);
   const [isAddingDoc, setIsAddingDoc] = useState(false);
   const [newDoc, setNewDoc] = useState({ title: '', content: '' });
+  const [preferredCurrency, setPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
 
   useEffect(() => {
     if (id) {
@@ -35,19 +36,64 @@ export default function ProjectDetails() {
 
   const fetchProjectData = async (projectId: string) => {
     try {
-      const [projectData, tasksData, notesData] = await Promise.all([
+      const [projectData, tasksData, notesData, settings] = await Promise.all([
         projectService.getById(projectId),
         taskService.getByProject(projectId),
         noteService.getByProject(projectId),
+        userSettingsService.get(),
       ]);
       setProject(projectData);
       setTasks(tasksData);
       setNotes(notesData);
+      
+      // Set currency preference
+      if (settings?.workflow?.preferredCurrency) {
+        setPreferredCurrency(settings.workflow.preferredCurrency);
+      }
     } catch (err) {
       setError('Failed to load project details');
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Format budget with the appropriate currency
+  const formatBudget = (budget?: number) => {
+    if (!budget) return null;
+    
+    // Use project's own currency if available, otherwise use preferred currency
+    const currency = project?.currency || preferredCurrency;
+    
+    if (currency === 'INR') {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+      }).format(budget);
+    } else if (currency === 'GBP') {
+      return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP'
+      }).format(budget);
+    } else {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(budget);
+    }
+  };
+
+  // Get the currency icon
+  const getCurrencyIcon = () => {
+    const currency = project?.currency || preferredCurrency;
+    
+    if (currency === 'INR') {
+      return <IndianRupee className="w-4 h-4 mr-2" />;
+    } else if (currency === 'GBP') {
+      return <PoundSterling className="w-4 h-4 mr-2" />;
+    } else {
+      return <DollarSign className="w-4 h-4 mr-2" />;
     }
   };
 
@@ -279,8 +325,8 @@ export default function ProjectDetails() {
                 )}
                 {project.budget && (
                   <div className="flex items-center text-sm text-gray-500">
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    <span>{project.budget.toLocaleString()}</span>
+                    {getCurrencyIcon()}
+                    <span>{formatBudget(project.budget)}</span>
                   </div>
                 )}
               </div>

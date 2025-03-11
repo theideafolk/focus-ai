@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Filter, CheckCircle2, Calendar, Plus, Clock } from 'lucide-react';
+import { Filter, CheckCircle2, Calendar, Plus, Clock, ArrowDown, ArrowUp } from 'lucide-react';
 import { taskService, projectService, userSettingsService } from '../services/supabaseService';
 import { learnFromTaskCompletion } from '../services/openaiService';
 import type { Task, Project, UserSettings } from '../types';
@@ -24,6 +24,8 @@ export default function Tasks() {
   const [isGenerateFormOpen, setIsGenerateFormOpen] = useState(false);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [stages, setStages] = useState<string[]>([]);
+  const [totalEstimatedTime, setTotalEstimatedTime] = useState(0);
+  const [maxDailyHours, setMaxDailyHours] = useState(8); // Default to 8 hours
   
   useEffect(() => {
     fetchData();
@@ -47,7 +49,21 @@ export default function Tasks() {
       const stageNames = userSettings.workflow.stages.map((stage: any) => stage.name);
       setStages(stageNames);
     }
+    
+    // Set max daily hours from user settings
+    if (userSettings?.workflow?.maxDailyHours) {
+      setMaxDailyHours(Number(userSettings.workflow.maxDailyHours));
+    }
   }, [userSettings]);
+  
+  // Calculate total estimated time of filtered tasks
+  useEffect(() => {
+    const pendingTasks = filteredTasks.filter(task => 
+      task.status === 'pending' || task.status === 'in_progress'
+    );
+    const total = pendingTasks.reduce((sum, task) => sum + task.estimated_time, 0);
+    setTotalEstimatedTime(total);
+  }, [filteredTasks]);
   
   const fetchData = async () => {
     try {
@@ -151,6 +167,61 @@ export default function Tasks() {
     setIsGenerateFormOpen(false);
   };
   
+  const moveTask = async (index: number, direction: 'up' | 'down') => {
+    if (filteredTasks.length <= 1) return;
+    
+    if (direction === 'up' && index > 0) {
+      const newTasks = [...filteredTasks];
+      [newTasks[index - 1], newTasks[index]] = [newTasks[index], newTasks[index - 1]];
+      
+      // Update priority scores to reflect the new order
+      const lowerPriority = newTasks[index].priority_score || 0;
+      const higherPriority = newTasks[index - 1].priority_score || 0;
+      
+      // Swap priorities
+      await Promise.all([
+        taskService.update(newTasks[index - 1].id, { priority_score: higherPriority }),
+        taskService.update(newTasks[index].id, { priority_score: lowerPriority })
+      ]);
+      
+      // Update local state
+      setTasks(tasks.map(task => {
+        if (task.id === newTasks[index - 1].id) {
+          return { ...task, priority_score: higherPriority };
+        }
+        if (task.id === newTasks[index].id) {
+          return { ...task, priority_score: lowerPriority };
+        }
+        return task;
+      }));
+      
+    } else if (direction === 'down' && index < filteredTasks.length - 1) {
+      const newTasks = [...filteredTasks];
+      [newTasks[index], newTasks[index + 1]] = [newTasks[index + 1], newTasks[index]];
+      
+      // Update priority scores to reflect the new order
+      const lowerPriority = newTasks[index].priority_score || 0;
+      const higherPriority = newTasks[index + 1].priority_score || 0;
+      
+      // Swap priorities
+      await Promise.all([
+        taskService.update(newTasks[index].id, { priority_score: lowerPriority }),
+        taskService.update(newTasks[index + 1].id, { priority_score: higherPriority })
+      ]);
+      
+      // Update local state
+      setTasks(tasks.map(task => {
+        if (task.id === newTasks[index].id) {
+          return { ...task, priority_score: lowerPriority };
+        }
+        if (task.id === newTasks[index + 1].id) {
+          return { ...task, priority_score: higherPriority };
+        }
+        return task;
+      }));
+    }
+  };
+  
   return (
     <PageContainer>
       <div className="space-y-6">
@@ -251,16 +322,71 @@ export default function Tasks() {
                 <option value="estimated_time">Time Estimate</option>
               </select>
             </div>
+            
+            {/* Show total estimated time */}
+            <div className="flex items-center ml-auto">
+              <span className="text-sm flex items-center">
+                <Clock className="w-4 h-4 mr-1 text-gray-500" />
+                <span className="text-gray-500 mr-1">Total:</span>
+                <span className={`font-medium ${totalEstimatedTime > maxDailyHours ? 'text-red-500' : 'text-green-600'}`}>
+                  {totalEstimatedTime.toFixed(1)}h
+                </span>
+                <span className="text-gray-500 mx-1">/</span>
+                <span className="text-gray-500">{maxDailyHours}h</span>
+              </span>
+            </div>
           </div>
           
-          <TaskList
-            tasks={filteredTasks}
-            projects={projectsMap}
-            onStatusChange={handleTaskStatusChange}
-            onDelete={handleTaskDelete}
-            onTimeUpdate={handleTaskTimeUpdate}
-            isLoading={loading}
-          />
+          {/* Task list with reordering capability */}
+          <div className="divide-y divide-gray-100">
+            {loading ? (
+              <div className="py-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-gray-500">Loading tasks...</p>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-gray-500">No tasks found</p>
+              </div>
+            ) : (
+              filteredTasks.map((task, index) => (
+                <div key={task.id} className="p-4 flex items-start gap-4">
+                  {/* Task reordering buttons (integrated from AI Focus page) */}
+                  <div className="flex flex-col gap-1 mt-2">
+                    <button
+                      onClick={() => moveTask(index, 'up')}
+                      disabled={index === 0}
+                      className="p-1 text-gray-400 hover:text-primary disabled:opacity-30 disabled:hover:text-gray-400"
+                      aria-label="Move up"
+                      title="Move task up"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => moveTask(index, 'down')}
+                      disabled={index === filteredTasks.length - 1}
+                      className="p-1 text-gray-400 hover:text-primary disabled:opacity-30 disabled:hover:text-gray-400"
+                      aria-label="Move down"
+                      title="Move task down"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="flex-1">
+                    <TaskList
+                      tasks={[task]}
+                      projects={projectsMap}
+                      onStatusChange={handleTaskStatusChange}
+                      onDelete={handleTaskDelete}
+                      onTimeUpdate={handleTaskTimeUpdate}
+                      hideListStyling={true}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
       

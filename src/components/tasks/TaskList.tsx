@@ -9,6 +9,7 @@ interface TaskListProps {
   onDelete?: (taskId: string) => void;
   onTimeUpdate?: (taskId: string, actualTime: number) => void;
   isLoading?: boolean;
+  hideListStyling?: boolean;
 }
 
 export default function TaskList({ 
@@ -17,7 +18,8 @@ export default function TaskList({
   onStatusChange, 
   onDelete, 
   onTimeUpdate,
-  isLoading 
+  isLoading,
+  hideListStyling = false
 }: TaskListProps) {
   if (isLoading) {
     return (
@@ -44,6 +46,24 @@ export default function TaskList({
       <div className="text-center py-12">
         <p className="text-gray-500">No tasks found</p>
       </div>
+    );
+  }
+
+  // If we want to hide the list styling (for embedded task items)
+  if (hideListStyling) {
+    return (
+      <>
+        {tasks.map((task) => (
+          <TaskItem
+            key={task.id}
+            task={task}
+            project={projects[task.project_id]}
+            onStatusChange={onStatusChange}
+            onDelete={onDelete}
+            onTimeUpdate={onTimeUpdate}
+          />
+        ))}
+      </>
     );
   }
 

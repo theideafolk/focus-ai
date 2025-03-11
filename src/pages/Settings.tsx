@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Plus, Trash2, Info } from 'lucide-react';
+import { Save, Plus, Trash2, Info, DollarSign, IndianRupee, PoundSterling } from 'lucide-react';
 import { userSettingsService } from '../services/supabaseService';
 import type { UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
@@ -44,6 +44,7 @@ export default function Settings() {
     displayName: '',
     maxDailyHours: 8,
     workDays: [1, 2, 3, 4, 5], // Monday-Friday by default (0=Sunday, 1=Monday, etc.)
+    preferredCurrency: 'USD' as 'USD' | 'INR' | 'GBP', // Default currency
   });
 
   useEffect(() => {
@@ -88,6 +89,7 @@ export default function Settings() {
           displayName: data.workflow?.displayName || '',
           maxDailyHours: data.workflow?.maxDailyHours || 8,
           workDays: data.workflow?.workDays || [1, 2, 3, 4, 5],
+          preferredCurrency: data.workflow?.preferredCurrency || 'USD',
         });
       }
     } catch (err) {
@@ -116,6 +118,7 @@ export default function Settings() {
           workDays: generalSettings.workDays,
           goals: goals,
           stages: workflowStages,
+          preferredCurrency: generalSettings.preferredCurrency,
         },
         time_estimates: settings?.time_estimates || {}, // Preserve existing estimates
       };
@@ -198,6 +201,14 @@ export default function Settings() {
     setGeneralSettings({
       ...generalSettings,
       workDays: newWorkDays.sort(),
+    });
+  };
+  
+  // Handle currency change
+  const handleCurrencyChange = (currency: 'USD' | 'INR' | 'GBP') => {
+    setGeneralSettings({
+      ...generalSettings,
+      preferredCurrency: currency,
     });
   };
 
@@ -305,6 +316,53 @@ export default function Settings() {
                   </button>
                 ))}
               </div>
+            </div>
+            
+            <div>
+              <span className="block text-sm font-medium text-gray-700 mb-2">
+                Preferred Currency
+              </span>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleCurrencyChange('USD')}
+                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                    generalSettings.preferredCurrency === 'USD'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  USD
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCurrencyChange('INR')}
+                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                    generalSettings.preferredCurrency === 'INR'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <IndianRupee className="w-4 h-4 mr-2" />
+                  INR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCurrencyChange('GBP')}
+                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                    generalSettings.preferredCurrency === 'GBP'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <PoundSterling className="w-4 h-4 mr-2" />
+                  GBP
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Choose your preferred currency for displaying project budgets
+              </p>
             </div>
           </div>
         </section>
