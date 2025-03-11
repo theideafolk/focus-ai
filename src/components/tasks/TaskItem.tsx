@@ -10,6 +10,9 @@ interface TaskItemProps {
   hideActions?: boolean;
   onTimeUpdate?: (taskId: string, actualTime: number) => void;
   onEdit?: (task: Task) => void;
+  isSelectable?: boolean;
+  isSelected?: boolean;
+  onSelect?: (taskId: string, selected: boolean) => void;
 }
 
 export default function TaskItem({ 
@@ -19,7 +22,10 @@ export default function TaskItem({
   onDelete, 
   hideActions,
   onTimeUpdate,
-  onEdit
+  onEdit,
+  isSelectable = false,
+  isSelected = false,
+  onSelect
 }: TaskItemProps) {
   const [actualTimeInput, setActualTimeInput] = useState(task.actual_time?.toString() || '');
   
@@ -45,9 +51,7 @@ export default function TaskItem({
   
   const handleStatusToggle = () => {
     if (!onStatusChange) return;
-    console.log('Toggling task status:', task.id);
     
-    // Immediately update the UI optimistically
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
     onStatusChange(task.id, newStatus);
   };
@@ -63,23 +67,26 @@ export default function TaskItem({
     }
   };
   
-  const handleDelete = () => {
-    if (onDelete) {
-      console.log('Delete button clicked for task:', task.id);
-      onDelete(task.id);
-    }
-  };
-  
-  const handleEdit = () => {
-    if (onEdit) {
-      console.log('Edit button clicked for task:', task.id);
-      onEdit(task);
+  const handleSelectTask = () => {
+    if (onSelect) {
+      onSelect(task.id, !isSelected);
     }
   };
   
   return (
-    <div className="flex gap-4">
-      {onStatusChange && (
+    <div className={`flex gap-4 ${isSelected ? 'bg-primary/5 rounded-lg' : ''}`}>
+      {isSelectable && (
+        <div className="pt-1 flex-shrink-0">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={handleSelectTask}
+            className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+        </div>
+      )}
+      
+      {onStatusChange && !isSelectable && (
         <button
           onClick={handleStatusToggle}
           className="mt-1 text-gray-400 hover:text-primary transition-colors flex-shrink-0"
@@ -95,39 +102,39 @@ export default function TaskItem({
       )}
       
       <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap items-center gap-1 mb-1">
           <h3 className={`text-sm font-medium ${
             task.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-900'
-          }`}>
+          } break-words`}>
             {task.description}
           </h3>
-          
-          <div className="flex gap-2 items-center flex-wrap">
-            <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[task.status]}`}>
-              {task.status.replace('_', ' ')}
-            </span>
-            
-            {project && (
-              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                {project.name}
-              </span>
-            )}
-            
-            {task.stage && (
-              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                {task.stage}
-              </span>
-            )}
-            
-            {task.priority_score !== undefined && (
-              <span className={`text-xs ${getPriorityColor(task.priority_score)}`}>
-                Priority: {task.priority_score}
-              </span>
-            )}
-          </div>
         </div>
         
-        <div className="mt-1 flex items-center gap-4 flex-wrap">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1">
+          <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[task.status]}`}>
+            {task.status.replace('_', ' ')}
+          </span>
+          
+          {project && (
+            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full truncate max-w-[150px]">
+              {project.name}
+            </span>
+          )}
+          
+          {task.stage && (
+            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full truncate max-w-[150px]">
+              {task.stage}
+            </span>
+          )}
+          
+          {task.priority_score !== undefined && (
+            <span className={`text-xs ${getPriorityColor(task.priority_score)}`}>
+              Priority: {task.priority_score}
+            </span>
+          )}
+        </div>
+        
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="text-xs text-gray-500 flex items-center">
             <Clock className="w-3 h-3 mr-1" />
             Est: {task.estimated_time} hours
@@ -158,11 +165,11 @@ export default function TaskItem({
         </div>
       </div>
       
-      {!hideActions && (
+      {!hideActions && !isSelectable && (
         <div className="flex gap-1">
           {onEdit && (
             <button
-              onClick={handleEdit}
+              onClick={() => onEdit(task)}
               className="text-gray-400 hover:text-primary transition-colors"
               aria-label="Edit task"
               type="button"
@@ -173,7 +180,7 @@ export default function TaskItem({
           
           {onDelete && (
             <button
-              onClick={handleDelete}
+              onClick={() => onDelete(task.id)}
               className="text-gray-400 hover:text-red-500 transition-colors"
               aria-label="Delete task"
               type="button"

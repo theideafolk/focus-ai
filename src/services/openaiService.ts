@@ -153,7 +153,9 @@ interface GenerateTasksOptions {
   project?: Project;
   context?: string;
   numTasks?: number;
-  timespan?: string;
+  timespan?: string; // String representation for prompt (e.g., "3 days")
+  timespanUnit?: 'day' | 'week' | 'month'; // Unit type
+  timespanValue?: number; // Numerical value
   userSettings?: UserSettings | null;
 }
 
@@ -162,7 +164,15 @@ export async function generateTasks(options: GenerateTasksOptions): Promise<Task
     throw new Error('OpenAI API key is not set. Cannot generate tasks.');
   }
   
-  const { project, context, numTasks, timespan = 'week', userSettings } = options;
+  const { 
+    project, 
+    context, 
+    numTasks, 
+    timespan = 'week', 
+    timespanUnit = 'week', 
+    timespanValue = 1, 
+    userSettings 
+  } = options;
   
   try {
     // First, get relevant notes and documentation for context
@@ -213,8 +223,22 @@ export async function generateTasks(options: GenerateTasksOptions): Promise<Task
       }
     }
     
+    // Calculate estimated due dates based on timespan
+    const now = new Date();
+    let endDate: Date;
+    
+    if (timespanUnit === 'day') {
+      endDate = new Date(now.getTime() + (timespanValue * 24 * 60 * 60 * 1000));
+    } else if (timespanUnit === 'week') {
+      endDate = new Date(now.getTime() + (timespanValue * 7 * 24 * 60 * 60 * 1000));
+    } else { // month
+      // Add months by setting the date directly (handles month transitions)
+      endDate = new Date(now);
+      endDate.setMonth(endDate.getMonth() + timespanValue);
+    }
+    
     // Build prompt for the AI
-    let prompt = `Generate appropriate, actionable tasks`;
+    let prompt = `Generate specific, actionable tasks`;
     
     if (project) {
       prompt += ` for the project "${project.name}"`;
@@ -234,25 +258,35 @@ export async function generateTasks(options: GenerateTasksOptions): Promise<Task
       prompt += ` balanced across multiple projects`;
     }
     
-    prompt += ` for a ${timespan} timespan.`;
+    prompt += ` for a timespan of ${timespan}.`;
     
     if (context) {
       prompt += ` Additional context: ${context}`;
     }
     
     // Add project documentation context
-    if (projectDocs.length > 0) {
+    let contextInstructions = '';
+    if (projectDocs.length > 0 || relevantNotes.length > 0) {
+      contextInstructions = `\n\nIMPORTANT: I'll provide you with relevant documentation and notes below. DO NOT simply reference them in your tasks (e.g., DO NOT create tasks like "Review feedback from Note 1"). Instead:
+1. Carefully read and understand the content of each document/note
+2. Extract specific, actionable items mentioned in them
+3. Create detailed, concrete tasks based on the actual content
+4. Convert vague ideas into specific deliverables
+5. Make each task self-contained with all necessary context (don't require the user to refer back to the original notes)`;
+      
+      prompt += contextInstructions;
+      
       prompt += `\n\nRelevant project documentation for context:\n`;
       projectDocs.slice(0, 3).forEach((doc, index) => {
-        prompt += `Documentation ${index + 1}: "${doc.title}" - ${doc.content.substring(0, 500)}\n`;
+        prompt += `Documentation "${doc.title}": ${doc.content.substring(0, 500)}\n\n`;
       });
     }
     
-    // Add notes context
+    // Add notes context with explicit instructions
     if (relevantNotes.length > 0) {
-      prompt += `\n\nRelevant notes for context:\n`;
+      prompt += `\n\nRelevant notes for context (extract actionable items from these):\n`;
       relevantNotes.forEach((note, index) => {
-        prompt += `Note ${index + 1}: ${note.content.substring(0, 500)}\n`;
+        prompt += `Note titled "${note.title || 'Untitled'}": ${note.content.substring(0, 500)}\n\n`;
       });
     }
 
@@ -299,15 +333,24 @@ export async function generateTasks(options: GenerateTasksOptions): Promise<Task
       }
     }
     
-    prompt += `\nFor each task, provide:
-1. A clear, actionable description
+    // Add timespan guidance specific to the chosen duration
+    prompt += `\n\nThe tasks should be spread appropriately over the specified timespan of ${timespan}. Ensure due dates are reasonable and evenly distributed within this period (starting from today: ${now.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}).`;
+    
+    // Add more clarity on the task requirements
+    prompt += `\n\nTask Requirements:
+1. Each task must be SPECIFIC and ACTIONABLE - it should be clear what needs to be done without needing additional context
+2. Use concrete verbs and clear deliverables (e.g., "Create user flow diagram for checkout process" NOT "Think about checkout")
+3. Include enough context within each task description (e.g., "Implement feedback form with 5 questions about UI experience" NOT "Implement feedback form")
+4. Break down vague requests into concrete steps
+5. If notes mention feedback or requests, extract the SPECIFIC items rather than just saying "address feedback"
+6. Avoid references to source notes/documents in task descriptions - incorporate the relevant details directly
+
+For each task, provide:
+1. A clear, actionable description as described above
 2. An estimated time in hours (realistic, between 0.5 and 8 hours)
 3. A priority score (1-10, where 10 is highest priority)
-4. A due date (relative to today)
+4. A due date (relative to today, within the specified ${timespan} timespan)
 5. A workflow stage (from the user's workflow stages, if available)
-
-Tasks should be concrete, specific, and actionable. Break down large tasks into manageable pieces.
-Consider dependencies between tasks and create a logical sequence.
 
 Format your response as a JSON array of task objects with these properties:
 - description (string)
@@ -329,7 +372,7 @@ Format your response as a JSON array of task objects with these properties:
         messages: [
           {
             role: 'system',
-            content: 'You are an AI assistant that helps with task generation and project management. Generate specific, actionable tasks with realistic time estimates.'
+            content: 'You are an AI assistant that helps with task generation and project management. Generate specific, actionable tasks with realistic time estimates. Your primary focus is to create highly detailed, concrete tasks that incorporate all relevant context, without requiring users to refer back to original source materials.'
           },
           {
             role: 'user',
@@ -363,7 +406,7 @@ Format your response as a JSON array of task objects with these properties:
       console.error('Error parsing OpenAI response:', parseError);
       
       // Fall back to simple tasks if parsing fails
-      return generateSimpleTasks(project, numTasks, timespan, userSettings);
+      return generateSimpleTasks(project, numTasks, timespanUnit, timespanValue, userSettings);
     }
     
     // Create task objects (but don't save to the database yet)
@@ -399,7 +442,7 @@ Format your response as a JSON array of task objects with these properties:
     console.error('Error generating tasks:', error);
     
     // Fall back to simple tasks if OpenAI API fails
-    return generateSimpleTasks(project, numTasks, timespan, userSettings);
+    return generateSimpleTasks(project, numTasks, timespanUnit, timespanValue, userSettings);
   }
 }
 
@@ -416,11 +459,13 @@ export async function breakdownTask(task: Task): Promise<Task[]> {
     const prompt = `Break down this task into 2-4 smaller, more specific subtasks: "${task.description}"
 
 Each subtask should be:
-1. Concrete and actionable
-2. More specific than the original task
-3. Logical steps towards completing the original task
+1. Concrete and actionable - even more specific than the original task
+2. Self-contained with clear outcomes/deliverables 
+3. A logical step towards completing the original task
 4. Have realistic time estimates that sum up to approximately ${task.estimated_time} hours
 5. Be part of the same workflow stage (${task.stage || 'no stage specified'})
+
+IMPORTANT: Avoid vague subtasks like "review" or "think about". Instead, create specific actionable items with clear deliverables.
 
 Format your response as a JSON array of subtask objects with these properties:
 - description (string)
@@ -442,7 +487,7 @@ Format your response as a JSON array of subtask objects with these properties:
         messages: [
           {
             role: 'system',
-            content: 'You are an AI assistant that helps break down tasks into smaller, manageable subtasks.'
+            content: 'You are an AI assistant that helps break down tasks into smaller, specific, and actionable subtasks. Create subtasks that are concrete, with clear deliverables, and require no additional context to understand.'
           },
           {
             role: 'user',
@@ -547,7 +592,13 @@ Format your response as a JSON array of subtask objects with these properties:
 /**
  * Simple fallback for task generation without AI
  */
-function generateSimpleTasks(project?: Project, numTasks = 5, timespan = 'week', userSettings?: UserSettings | null): Promise<Task[]> {
+function generateSimpleTasks(
+  project?: Project, 
+  numTasks = 5, 
+  timespanUnit: 'day' | 'week' | 'month' = 'week', 
+  timespanValue = 1,
+  userSettings?: UserSettings | null
+): Promise<Task[]> {
   return new Promise(async (resolve) => {
     const createdTasks: Task[] = [];
     const defaultTasks = [
@@ -569,10 +620,15 @@ function generateSimpleTasks(project?: Project, numTasks = 5, timespan = 'week',
       stages = userSettings.workflow.stages.map(stage => stage.name);
     }
     
-    // Get number of days based on timespan
+    // Calculate number of days based on timespan
     let days = 7;
-    if (timespan === 'day') days = 1;
-    if (timespan === 'month') days = 30;
+    if (timespanUnit === 'day') {
+      days = timespanValue;
+    } else if (timespanUnit === 'week') {
+      days = timespanValue * 7;
+    } else if (timespanUnit === 'month') {
+      days = timespanValue * 30;
+    }
     
     // Create tasks
     for (let i = 0; i < Math.min(numTasks || 5, defaultTasks.length); i++) {

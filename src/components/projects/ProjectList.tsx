@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, DollarSign, PoundSterling, IndianRupee, Trash2, Edit, Tag, BarChart2 } from 'lucide-react';
+import { Calendar, DollarSign, PoundSterling, IndianRupee, Trash2, Edit, Tag, BarChart2, Info } from 'lucide-react';
 import type { Project } from '../../types';
 
 interface ProjectListProps {
@@ -115,39 +115,50 @@ export default function ProjectList({ projects, onEdit, onDelete, isLoading, pre
           className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100 relative group cursor-pointer"
           onClick={() => handleProjectClick(project.id)}
         >
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">{project.name}</h3>
-              {project.client_name && (
-                <p className="text-sm text-gray-500 mt-1">{project.client_name}</p>
-              )}
+          <div className="flex justify-between items-start mb-3">
+            <h3 className="text-lg font-medium text-gray-900 pr-12">{project.name}</h3>
+            
+            {/* Priority score with info icon */}
+            <div className="flex items-center gap-1 absolute top-6 right-6">
+              <div className="w-10 h-10 flex items-center justify-center bg-primary/10 text-primary rounded-full font-medium">
+                {project.priority_score || 0}
+              </div>
+              <div className="relative group/tooltip">
+                <Info className="w-4 h-4 text-gray-400 cursor-help" />
+                <div className="absolute hidden group-hover/tooltip:block right-0 top-0 -mt-10 bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                  Priority score
+                </div>
+              </div>
             </div>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-              Priority: {project.priority_score || 0}
-            </span>
           </div>
+          
+          {project.client_name && (
+            <p className="text-sm text-gray-500 mb-4">{project.client_name}</p>
+          )}
           
           <div className="mt-4 space-y-2">
             {/* Project type badge */}
             {project.project_type && (
               <div className="flex items-center text-sm text-gray-500">
-                <Tag className="w-4 h-4 mr-2" />
-                <span>{formatProjectType(project.project_type)}</span>
+                <Tag className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span className="truncate">{formatProjectType(project.project_type)}</span>
                 {project.project_type === 'other' && project.project_type_other && (
-                  <span className="ml-1">({project.project_type_other})</span>
+                  <span className="ml-1 truncate">({project.project_type_other})</span>
                 )}
               </div>
             )}
             
             {/* Complexity badge */}
             {project.complexity && (
-              <div className="flex items-center">
-                <BarChart2 className="w-4 h-4 mr-2 text-gray-500" />
-                <span className={`text-xs px-2 py-0.5 rounded-full ${getComplexityColor(project.complexity)}`}>
-                  {project.complexity.charAt(0).toUpperCase() + project.complexity.slice(1)}
-                </span>
+              <div className="flex items-center flex-wrap gap-2">
+                <div className="flex items-center">
+                  <BarChart2 className="w-4 h-4 mr-2 text-gray-500 flex-shrink-0" />
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${getComplexityColor(project.complexity)}`}>
+                    {project.complexity.charAt(0).toUpperCase() + project.complexity.slice(1)}
+                  </span>
+                </div>
                 {project.is_recurring && (
-                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 flex-shrink-0">
                     Recurring
                   </span>
                 )}
@@ -156,8 +167,8 @@ export default function ProjectList({ projects, onEdit, onDelete, isLoading, pre
             
             {(project.start_date || project.end_date) && (
               <div className="flex items-center text-sm text-gray-500">
-                <Calendar className="w-4 h-4 mr-2" />
-                <span>
+                <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
+                <span className="truncate">
                   {project.start_date && new Date(project.start_date).toLocaleDateString()}
                   {project.end_date && ` - ${new Date(project.end_date).toLocaleDateString()}`}
                 </span>
@@ -167,12 +178,12 @@ export default function ProjectList({ projects, onEdit, onDelete, isLoading, pre
             {project.budget && (
               <div className="flex items-center text-sm text-gray-500">
                 {getCurrencyIcon(project)}
-                <span>{formatBudget(project)}</span>
+                <span className="truncate">{formatBudget(project)}</span>
               </div>
             )}
           </div>
 
-          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10">
+          <div className="absolute top-4 right-20 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10">
             <button
               onClick={(e) => {
                 e.stopPropagation();

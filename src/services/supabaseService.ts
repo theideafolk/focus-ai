@@ -228,6 +228,14 @@ export const taskService = {
       .delete()
       .eq('id', id);
     if (error) throw error;
+  },
+  
+  async batchDelete(ids: string[]) {
+    const { error } = await supabase
+      .from('tasks')
+      .delete()
+      .in('id', ids);
+    if (error) throw error;
   }
 };
 

@@ -72,6 +72,42 @@ export interface AIContext {
   last_updated: string;
 }
 
+// Analytics data types
+export interface UserInsights {
+  taskCompletionRate: number; // Percentage of tasks completed
+  averageActualVsEstimated: number; // Ratio of actual time to estimated time
+  mostProductiveDay?: string; // Day of week with most completions
+  mostProductiveTimeOfDay?: 'morning' | 'afternoon' | 'evening';
+  mostEfficientProjectType?: string; // Project type with best completion rate
+  estimationAccuracy: number; // 0-100% for how accurate time estimates are
+  projectBalanceScore: number; // 0-100% for work distribution across projects
+  totalCompletedTasks: number; // Total number of completed tasks
+  totalTrackedTime: number; // Total hours across all tasks
+}
+
+export interface TimeEstimateAccuracy {
+  taskType: string; // Could be project type, task description category, etc.
+  accuracyScore: number; // 0-100% accuracy
+  averageEstimatedTime: number; // Average estimated hours
+  averageActualTime: number; // Average actual hours
+  taskCount: number; // Number of tasks in this category
+}
+
+export interface ProjectTypeEfficiency {
+  projectType: string;
+  taskCount: number;
+  completedCount: number;
+  completionRate: number; // 0-100%
+  averageTimeRatio: number; // Actual time / estimated time ratio
+}
+
+export interface ProductivityByDay {
+  day: string; // Monday, Tuesday, etc.
+  taskCount: number;
+  completedCount: number;
+  averageTimePerTask: number;
+}
+
 // Type mapping for project type priorities
 export const PROJECT_TYPE_PRIORITIES: Record<string, number> = {
   'retainer': 80,         // Steady income, high priority

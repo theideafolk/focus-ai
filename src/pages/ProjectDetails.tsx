@@ -34,12 +34,22 @@ export default function ProjectDetails() {
   const [newDoc, setNewDoc] = useState({ title: '', content: '' });
   const [preferredCurrency, setPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
   const [activeTab, setActiveTab] = useState<'documents' | 'documentation' | 'notes' | 'tasks'>('tasks');
+  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [stages, setStages] = useState<string[]>([]);
 
   useEffect(() => {
     if (id) {
       fetchProjectData(id);
     }
   }, [id]);
+
+  useEffect(() => {
+    // Extract workflow stages from user settings
+    if (userSettings?.workflow?.stages) {
+      const stageNames = userSettings.workflow.stages.map((stage: any) => stage.name);
+      setStages(stageNames);
+    }
+  }, [userSettings]);
 
   const fetchProjectData = async (projectId: string) => {
     try {
@@ -52,6 +62,7 @@ export default function ProjectDetails() {
       setProject(projectData);
       setTasks(tasksData);
       setNotes(notesData);
+      setUserSettings(settings);
       
       // Set currency preference
       if (settings?.workflow?.preferredCurrency) {
@@ -327,6 +338,32 @@ export default function ProjectDetails() {
     }
   };
 
+  const handleAggregateTasks = async (newTask: Partial<Task>, taskIdsToRemove: string[]) => {
+    try {
+      // Create the new aggregated task
+      const createdTask = await taskService.create({
+        ...newTask,
+        project_id: project?.id || ''
+      });
+      
+      // Delete the tasks that were aggregated
+      for (const taskId of taskIdsToRemove) {
+        await taskService.delete(taskId);
+      }
+      
+      // Update the tasks state by removing the old tasks and adding the new one
+      setTasks(prevTasks => [
+        createdTask,
+        ...prevTasks.filter(task => !taskIdsToRemove.includes(task.id))
+      ]);
+
+      return createdTask;
+    } catch (error) {
+      console.error('Error during task aggregation:', error);
+      throw new Error('Failed to aggregate tasks');
+    }
+  };
+
   if (loading) {
     return (
       <PageContainer>
@@ -522,6 +559,8 @@ export default function ProjectDetails() {
                   onStatusChange={handleTaskStatusChange}
                   onDelete={handleTaskDelete}
                   onEdit={handleTaskEdit}
+                  onAggregateTasks={handleAggregateTasks}
+                  stages={stages}
                 />
               </div>
             )}

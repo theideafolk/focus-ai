@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Save, Plus, Trash2, Info, DollarSign, IndianRupee, PoundSterling } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, Plus, Trash2, Info, DollarSign, IndianRupee, PoundSterling, Calendar, AlertCircle } from 'lucide-react';
 import { userSettingsService } from '../services/supabaseService';
 import type { UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
@@ -238,10 +238,11 @@ export default function Settings() {
           <button
             onClick={saveSettings}
             disabled={saving}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
+            className="inline-flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
+            aria-label="Save Settings"
           >
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Settings'}
+            <Save className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save Settings'}</span>
           </button>
         </div>
         
@@ -663,10 +664,10 @@ export default function Settings() {
           <button
             onClick={saveSettings}
             disabled={saving}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
+            className="inline-flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
           >
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Settings'}
+            <Save className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save Settings'}</span>
           </button>
         </div>
       </div>

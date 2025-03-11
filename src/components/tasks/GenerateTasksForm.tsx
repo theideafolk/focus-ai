@@ -19,7 +19,8 @@ export default function GenerateTasksForm({
 }: GenerateTasksFormProps) {
   const [projectId, setProjectId] = useState<string>('');
   const [context, setContext] = useState<string>('');
-  const [timespan, setTimespan] = useState<string>('week');
+  const [timespanUnit, setTimespanUnit] = useState<'day' | 'week' | 'month'>('week');
+  const [timespanValue, setTimespanValue] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
@@ -58,11 +59,16 @@ export default function GenerateTasksForm({
         throw new Error('Selected project not found');
       }
       
+      // Create timespan string for the OpenAI prompt
+      const timespan = `${timespanValue} ${timespanUnit}${timespanValue > 1 ? 's' : ''}`;
+      
       // Generate tasks using the AI service
       const tasks = await generateTasks({
         project,
         context,
         timespan,
+        timespanUnit,
+        timespanValue,
         userSettings
       });
       
@@ -235,16 +241,34 @@ export default function GenerateTasksForm({
                 <label htmlFor="timespan" className="block text-sm font-medium text-gray-700">
                   Time Span
                 </label>
-                <select
-                  id="timespan"
-                  value={timespan}
-                  onChange={(e) => setTimespan(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                >
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                </select>
+                <div className="flex space-x-3">
+                  <div className="w-1/3">
+                    <input
+                      type="number"
+                      id="timespanValue"
+                      min="1"
+                      max="100"
+                      value={timespanValue}
+                      onChange={(e) => setTimespanValue(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                    />
+                  </div>
+                  <div className="w-2/3">
+                    <select
+                      id="timespanUnit"
+                      value={timespanUnit}
+                      onChange={(e) => setTimespanUnit(e.target.value as 'day' | 'week' | 'month')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                    >
+                      <option value="day">Day{timespanValue > 1 ? 's' : ''}</option>
+                      <option value="week">Week{timespanValue > 1 ? 's' : ''}</option>
+                      <option value="month">Month{timespanValue > 1 ? 's' : ''}</option>
+                    </select>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Select the time period for which you want to generate tasks.
+                </p>
               </div>
               
               <div className="bg-blue-50 p-3 rounded-lg">

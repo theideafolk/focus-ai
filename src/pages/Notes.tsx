@@ -185,10 +185,11 @@ export default function Notes() {
           </div>
           <button
             onClick={handleOpenNewNoteForm}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+            className="inline-flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+            aria-label="New Note"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            New Note
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">New Note</span>
           </button>
         </div>
         

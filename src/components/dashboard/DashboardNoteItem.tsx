@@ -25,19 +25,19 @@ export default function DashboardNoteItem({ note, project, onClick }: DashboardN
       className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 hover:shadow-md transition-shadow h-full cursor-pointer"
       onClick={onClick}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
         <div className="flex items-center text-xs text-gray-500">
-          <Calendar className="w-3 h-3 mr-1" />
+          <Calendar className="w-3 h-3 mr-1 flex-shrink-0" />
           <span>{formattedDate}</span>
         </div>
         {project && (
           <Link 
             to={`/projects/${project.id}`} 
-            className="text-xs text-primary flex items-center hover:underline"
+            className="text-xs text-primary flex items-center hover:underline truncate max-w-[150px]"
             onClick={e => e.stopPropagation()}
           >
-            <LinkIcon className="w-3 h-3 mr-1" />
-            {project.name}
+            <LinkIcon className="w-3 h-3 mr-1 flex-shrink-0" />
+            <span className="truncate">{project.name}</span>
           </Link>
         )}
       </div>

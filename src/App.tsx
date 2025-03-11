@@ -8,6 +8,7 @@ import ProjectDetails from './pages/ProjectDetails';
 import Notes from './pages/Notes';
 import Tasks from './pages/Tasks';
 import Settings from './pages/Settings';
+import Insights from './pages/Insights';
 import './index.css';
 
 // This component will handle the redirect logic
@@ -83,6 +84,7 @@ function App() {
               <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
               <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
               <Route
                 path="/"
                 element={

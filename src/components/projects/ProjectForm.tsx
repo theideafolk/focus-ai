@@ -150,13 +150,15 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h2 className="text-xl font-medium text-gray-900">
             {project?.id ? 'Edit Project' : 'New Project'}
           </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500 transition-colors"
+            type="button"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -258,7 +260,7 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
                 Timeline
               </h3>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-1">
                     Start Date *
@@ -363,11 +365,11 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
               <span className="block text-sm font-medium text-gray-700 mb-2">
                 Budget Currency
               </span>
-              <div className="flex space-x-4 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   type="button"
                   onClick={() => handleCurrencyChange('USD')}
-                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center h-10 px-4 py-2 rounded-lg transition-colors ${
                     formData.currency === 'USD'
                       ? 'bg-primary text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -379,7 +381,7 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
                 <button
                   type="button"
                   onClick={() => handleCurrencyChange('INR')}
-                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center h-10 px-4 py-2 rounded-lg transition-colors ${
                     formData.currency === 'INR'
                       ? 'bg-primary text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -391,7 +393,7 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
                 <button
                   type="button"
                   onClick={() => handleCurrencyChange('GBP')}
-                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center h-10 px-4 py-2 rounded-lg transition-colors ${
                     formData.currency === 'GBP'
                       ? 'bg-primary text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -420,7 +422,7 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
                 min="0"
                 step="0.01"
                 value={formData.budget || ''}
-                onChange={(e) => setFormData({ ...formData, budget: parseFloat(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, budget: parseFloat(e.target.value) || undefined })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                 placeholder={`Enter ${formData.currency} value`}
               />
@@ -453,7 +455,7 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors min-w-[80px]"
                 disabled={isSubmitting}
               >
                 Cancel
@@ -461,9 +463,9 @@ export default function ProjectForm({ project, onSubmit, onClose, isOpen }: Proj
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 min-w-[80px]"
               >
-                {isSubmitting ? 'Saving...' : project?.id ? 'Save Changes' : 'Create Project'}
+                {isSubmitting ? 'Saving...' : project?.id ? 'Save' : 'Create'}
               </button>
             </div>
           </form>

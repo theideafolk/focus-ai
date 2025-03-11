@@ -109,14 +109,16 @@ export default function TaskForm({
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
-        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h2 className="text-xl font-medium text-gray-900">
             {task ? 'Edit Task' : 'New Task'}
           </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500 transition-colors"
+            type="button"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -221,7 +223,7 @@ export default function TaskForm({
                 min="1"
                 max="10"
                 value={formData.priority_score || 5}
-                onChange={(e) => setFormData({ ...formData, priority_score: parseInt(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, priority_score: parseInt(e.target.value) || 5 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
               />
             </div>
@@ -241,8 +243,8 @@ export default function TaskForm({
                 required
                 min="0.1"
                 step="0.1"
-                value={formData.estimated_time || ''}
-                onChange={(e) => setFormData({ ...formData, estimated_time: parseFloat(e.target.value) })}
+                value={formData.estimated_time || 1}
+                onChange={(e) => setFormData({ ...formData, estimated_time: parseFloat(e.target.value) || 1 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
               />
             </div>
@@ -267,7 +269,7 @@ export default function TaskForm({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
+              className="min-w-[80px] px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
               disabled={isSubmitting}
             >
               Cancel
@@ -275,9 +277,9 @@ export default function TaskForm({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
+              className="min-w-[80px] px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50"
             >
-              {isSubmitting ? 'Saving...' : task ? 'Save Changes' : 'Create Task'}
+              {isSubmitting ? 'Saving...' : task ? 'Save' : 'Create'}
             </button>
           </div>
         </form>

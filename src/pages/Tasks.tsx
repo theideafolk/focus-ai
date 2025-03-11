@@ -76,12 +76,24 @@ export default function Tasks() {
         projectService.getAll(),
         userSettingsService.get()
       ]);
+      
+      // Set initial state
       setTasks(allTasks);
       setProjects(allProjects);
       setUserSettings(settings);
+      
+      // Create projects map
+      const projectMap: Record<string, Project> = {};
+      allProjects.forEach(project => {
+        projectMap[project.id] = project;
+      });
+      setProjectsMap(projectMap);
+      
+      // Apply initial filters
+      applyFiltersAndSort();
     } catch (err) {
-      setError('Failed to load tasks');
-      console.error(err);
+      console.error('Failed to load data:', err);
+      setError('Failed to load tasks. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -153,10 +165,7 @@ export default function Tasks() {
   
   const handleTaskTimeUpdate = async (taskId: string, actualTime: number) => {
     try {
-      // Update the actual time in the database
       await learnFromTaskCompletion(taskId, actualTime);
-      
-      // Update the local state
       setTasks(tasks.map(task => 
         task.id === taskId ? { ...task, actual_time: actualTime } : task
       ));
@@ -193,90 +202,59 @@ export default function Tasks() {
         const newTask = await taskService.create(taskData);
         setTasks([newTask, ...tasks]);
       }
+      setIsTaskFormOpen(false);
     } catch (err) {
       throw new Error('Failed to save task');
     }
   };
-  
-  const moveTask = async (index: number, direction: 'up' | 'down') => {
-    if (filteredTasks.length <= 1) return;
-    
-    if (direction === 'up' && index > 0) {
-      const newTasks = [...filteredTasks];
-      [newTasks[index - 1], newTasks[index]] = [newTasks[index], newTasks[index - 1]];
+
+  const handleAggregateTasks = async (newTask: Partial<Task>, taskIdsToRemove: string[]) => {
+    try {
+      // Create the new aggregated task
+      const createdTask = await taskService.create(newTask);
       
-      // Update priority scores to reflect the new order
-      const lowerPriority = newTasks[index].priority_score || 0;
-      const higherPriority = newTasks[index - 1].priority_score || 0;
+      // Delete the tasks that were aggregated
+      for (const taskId of taskIdsToRemove) {
+        await taskService.delete(taskId);
+      }
       
-      // Swap priorities
-      await Promise.all([
-        taskService.update(newTasks[index - 1].id, { priority_score: higherPriority }),
-        taskService.update(newTasks[index].id, { priority_score: lowerPriority })
+      // Update the tasks state by removing the old tasks and adding the new one
+      setTasks(prevTasks => [
+        createdTask,
+        ...prevTasks.filter(task => !taskIdsToRemove.includes(task.id))
       ]);
-      
-      // Update local state
-      setTasks(tasks.map(task => {
-        if (task.id === newTasks[index - 1].id) {
-          return { ...task, priority_score: higherPriority };
-        }
-        if (task.id === newTasks[index].id) {
-          return { ...task, priority_score: lowerPriority };
-        }
-        return task;
-      }));
-      
-    } else if (direction === 'down' && index < filteredTasks.length - 1) {
-      const newTasks = [...filteredTasks];
-      [newTasks[index], newTasks[index + 1]] = [newTasks[index + 1], newTasks[index]];
-      
-      // Update priority scores to reflect the new order
-      const lowerPriority = newTasks[index].priority_score || 0;
-      const higherPriority = newTasks[index + 1].priority_score || 0;
-      
-      // Swap priorities
-      await Promise.all([
-        taskService.update(newTasks[index].id, { priority_score: lowerPriority }),
-        taskService.update(newTasks[index + 1].id, { priority_score: higherPriority })
-      ]);
-      
-      // Update local state
-      setTasks(tasks.map(task => {
-        if (task.id === newTasks[index].id) {
-          return { ...task, priority_score: lowerPriority };
-        }
-        if (task.id === newTasks[index + 1].id) {
-          return { ...task, priority_score: higherPriority };
-        }
-        return task;
-      }));
+
+      return createdTask;
+    } catch (error) {
+      console.error('Error during task aggregation:', error);
+      throw new Error('Failed to aggregate tasks');
     }
   };
   
   return (
     <PageContainer>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-medium text-gray-900">Tasks</h1>
             <p className="mt-1 text-gray-500">
               Manage and track tasks across all your projects
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleCreateTask}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-700 hover:bg-gray-800 rounded-lg transition-colors"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-white bg-gray-700 hover:bg-gray-800 rounded-lg transition-colors"
             >
               <Plus className="w-4 h-4 mr-2" />
-              New Task
+              <span>New Task</span>
             </button>
             <button
               onClick={() => setIsGenerateFormOpen(true)}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center h-10 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
             >
               <Edit className="w-4 h-4 mr-2" />
-              Generate Tasks
+              <span>Generate Tasks</span>
             </button>
           </div>
         </div>
@@ -292,13 +270,13 @@ export default function Tasks() {
             <div className="flex items-center">
               <label htmlFor="status-filter" className="text-sm text-gray-500 mr-2 flex items-center">
                 <CheckCircle2 className="w-4 h-4 mr-1" />
-                Status:
+                <span className="hidden sm:inline">Status:</span>
               </label>
               <select
                 id="status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as FilterType)}
-                className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary min-w-[100px]"
               >
                 <option value="all">All</option>
                 <option value="pending">Pending</option>
@@ -311,16 +289,16 @@ export default function Tasks() {
             <div className="flex items-center">
               <label htmlFor="project-filter" className="text-sm text-gray-500 mr-2 flex items-center">
                 <Filter className="w-4 h-4 mr-1" />
-                Project:
+                <span className="hidden sm:inline">Project:</span>
               </label>
               <select
                 id="project-filter"
                 value={projectFilter}
                 onChange={(e) => setProjectFilter(e.target.value)}
-                className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary min-w-[100px]"
               >
                 <option value="all">All Projects</option>
-                {projects.map(project => (
+                {projects.map((project) => (
                   <option key={project.id} value={project.id}>{project.name}</option>
                 ))}
               </select>
@@ -330,16 +308,16 @@ export default function Tasks() {
               <div className="flex items-center">
                 <label htmlFor="stage-filter" className="text-sm text-gray-500 mr-2 flex items-center">
                   <Clock className="w-4 h-4 mr-1" />
-                  Stage:
+                  <span className="hidden sm:inline">Stage:</span>
                 </label>
                 <select
                   id="stage-filter"
                   value={stageFilter}
                   onChange={(e) => setStageFilter(e.target.value)}
-                  className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                  className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary min-w-[100px]"
                 >
                   <option value="all">All Stages</option>
-                  {stages.map(stage => (
+                  {stages.map((stage) => (
                     <option key={stage} value={stage}>{stage}</option>
                   ))}
                 </select>
@@ -349,13 +327,13 @@ export default function Tasks() {
             <div className="flex items-center">
               <label htmlFor="sort-by" className="text-sm text-gray-500 mr-2 flex items-center">
                 <Calendar className="w-4 h-4 mr-1" />
-                Sort by:
+                <span className="hidden sm:inline">Sort by:</span>
               </label>
               <select
                 id="sort-by"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortType)}
-                className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                className="text-sm border-gray-300 rounded-md focus:ring-primary focus:border-primary min-w-[100px]"
               >
                 <option value="priority">Priority</option>
                 <option value="due_date">Due Date</option>
@@ -377,7 +355,7 @@ export default function Tasks() {
             </div>
           </div>
           
-          {/* Task list with reordering capability */}
+          {/* Task list */}
           <div className="divide-y divide-gray-100">
             {loading ? (
               <div className="py-8 text-center">
@@ -389,61 +367,36 @@ export default function Tasks() {
                 <p className="text-gray-500">No tasks found</p>
               </div>
             ) : (
-              filteredTasks.map((task, index) => (
-                <div key={task.id} className="p-4 flex items-start gap-4">
-                  {/* Task reordering buttons (integrated from AI Focus page) */}
-                  <div className="flex flex-col gap-1 mt-2">
-                    <button
-                      onClick={() => moveTask(index, 'up')}
-                      disabled={index === 0}
-                      className="p-1 text-gray-400 hover:text-primary disabled:opacity-30 disabled:hover:text-gray-400"
-                      aria-label="Move up"
-                      title="Move task up"
-                    >
-                      <ArrowUp className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => moveTask(index, 'down')}
-                      disabled={index === filteredTasks.length - 1}
-                      className="p-1 text-gray-400 hover:text-primary disabled:opacity-30 disabled:hover:text-gray-400"
-                      aria-label="Move down"
-                      title="Move task down"
-                    >
-                      <ArrowDown className="w-4 h-4" />
-                    </button>
-                  </div>
-                  
-                  <div className="flex-1">
-                    <TaskList
-                      tasks={[task]}
-                      projects={projectsMap}
-                      onStatusChange={handleTaskStatusChange}
-                      onDelete={handleTaskDelete}
-                      onTimeUpdate={handleTaskTimeUpdate}
-                      onEdit={handleEdit}
-                      hideListStyling={true}
-                    />
-                  </div>
-                </div>
-              ))
+              <TaskList
+                tasks={filteredTasks}
+                projects={projectsMap}
+                onStatusChange={handleTaskStatusChange}
+                onDelete={handleTaskDelete}
+                onTimeUpdate={handleTaskTimeUpdate}
+                onEdit={handleEdit}
+                onAggregateTasks={handleAggregateTasks}
+                stages={stages}
+              />
             )}
           </div>
         </div>
       </div>
       
-      <GenerateTasksForm
-        isOpen={isGenerateFormOpen}
-        onClose={() => setIsGenerateFormOpen(false)}
-        projects={projects}
-        onTasksGenerated={handleTasksGenerated}
-      />
-      
+      {/* Task Form Modal */}
       <TaskForm
         task={selectedTask}
         isOpen={isTaskFormOpen}
         onClose={() => setIsTaskFormOpen(false)}
         onSubmit={handleTaskFormSubmit}
         allowProjectChange={true}
+      />
+      
+      {/* Generate Tasks Modal */}
+      <GenerateTasksForm
+        isOpen={isGenerateFormOpen}
+        onClose={() => setIsGenerateFormOpen(false)}
+        projects={projects}
+        onTasksGenerated={handleTasksGenerated}
       />
     </PageContainer>
   );
