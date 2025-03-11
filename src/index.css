@@ -24,10 +24,21 @@
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes countUp {
+  0% { transform: translateY(100%); opacity: 0; }
+  10% { transform: translateY(0); opacity: 1; }
+  90% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-100%); opacity: 0; }
+}
+
 .animate-fadeIn {
   animation: fadeIn 0.2s ease-in-out forwards;
 }
 
 .animate-slideUp {
   animation: slideUp 0.3s ease-out forwards;
+}
+
+.animate-countUp {
+  animation: countUp 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { userSettingsService } from '../services/supabaseService';
-import { ToggleLeft as Google } from 'lucide-react';
+import { userSettingsService, userStreakService } from '../services/supabaseService';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -10,7 +9,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -43,6 +41,9 @@ export default function Login() {
           console.error('Sign in error:', signInError);
           throw signInError;
         }
+        
+        // Update user streak on successful login
+        await userStreakService.updateStreak();
       }
 
       // Check if there's a saved path to redirect to
@@ -79,42 +80,12 @@ export default function Login() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    setError('');
-
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin + '/dashboard'
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // No need to navigate here as the OAuth flow will handle redirection
-    } catch (err) {
-      let errorMessage = 'Failed to sign in with Google';
-      
-      if (err instanceof Error) {
-        console.error('Google sign-in error:', err);
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
-      setGoogleLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
         <div>
           <h1 className="text-3xl font-semibold text-center text-gray-900">
-            focus AI
+            focus
           </h1>
           <p className="mt-2 text-center text-gray-600">
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
@@ -161,27 +132,6 @@ export default function Login() {
                 ? 'Create account'
                 : 'Sign in'
             }
-          </button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={googleLoading}
-            className="w-full flex items-center justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors disabled:opacity-50"
-          >
-            <Google className="w-5 h-5 mr-2" />
-            {googleLoading ? 'Connecting...' : 'Sign in with Google'}
           </button>
 
           <div className="text-center">

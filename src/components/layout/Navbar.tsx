@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Briefcase, FileText, Settings, CheckCircle, LogOut, Brain } from 'lucide-react';
+import { Home, Briefcase, FileText, Settings, CheckCircle, LogOut, Brain, CheckSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Navbar() {
@@ -22,40 +22,16 @@ export default function Navbar() {
     await signOut();
   };
 
-  // Get user avatar or initials
-  const getAvatarContent = () => {
-    if (user?.user_metadata?.avatar_url) {
-      return (
-        <img 
-          src={user.user_metadata.avatar_url} 
-          alt="Avatar" 
-          className="w-8 h-8 rounded-full"
-        />
-      );
-    } else {
-      // Extract initials from email or name
-      const name = user?.user_metadata?.full_name || user?.email || '';
-      const initials = name
-        .split(/\s+/)
-        .map(part => part[0]?.toUpperCase() || '')
-        .slice(0, 2)
-        .join('');
-        
-      return (
-        <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-medium">
-          {initials || '?'}
-        </div>
-      );
-    }
-  };
-
   return (
-    <nav className="bg-white border-b border-gray-200">
+    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-semibold text-primary">focus AI</span>
+              <Link to="/dashboard" className="flex items-center">
+                <CheckSquare className="h-6 w-6 text-primary mr-2" />
+                <span className="text-xl font-semibold text-gray-900">focus</span>
+              </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-4 md:space-x-6 lg:space-x-8">
               {links.map(({ path, icon: Icon, label }) => (
@@ -75,8 +51,7 @@ export default function Navbar() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            {getAvatarContent()}
+          <div className="flex items-center">
             <button
               onClick={handleLogout}
               className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 hover:text-primary transition-colors"

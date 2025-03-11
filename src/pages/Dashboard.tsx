@@ -6,6 +6,7 @@ import type { Project, Task, Note, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import ProjectCard from '../components/dashboard/ProjectCard';
 import DashboardNoteItem from '../components/dashboard/DashboardNoteItem';
+import StreakCounter from '../components/dashboard/StreakCounter'; // Import the new component
 import NoteForm from '../components/notes/NoteForm';
 import TaskItem from '../components/tasks/TaskItem';
 import { Link, useNavigate } from 'react-router-dom';
@@ -13,7 +14,7 @@ import { Plus, FileText, LightbulbIcon, Edit, Calendar } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, streakCount } = useAuth(); // Get streakCount from auth context
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -202,14 +203,21 @@ export default function Dashboard() {
   return (
     <PageContainer>
       <div className="space-y-8">
-        {/* Welcome Section */}
-        <div>
-          <h1 className="text-2xl font-medium text-gray-900">
-            Welcome back, {user?.email?.split('@')[0]}
-          </h1>
-          <p className="mt-1 text-gray-500">
-            Here's your focus for today
-          </p>
+        {/* Welcome Section with streak counter */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-medium text-gray-900">
+              Welcome back, {user?.email?.split('@')[0]}
+            </h1>
+            <p className="mt-1 text-gray-500">
+              Here's your focus for today
+            </p>
+          </div>
+          
+          {/* Streak counter positioned in top-right */}
+          <div className="animate-fadeIn">
+            <StreakCounter streak={streakCount} />
+          </div>
         </div>
 
         {error && (
