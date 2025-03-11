@@ -5,11 +5,11 @@ import { storeNoteEmbedding } from '../services/openaiService';
 import type { Project, Task, Note, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import ProjectCard from '../components/dashboard/ProjectCard';
-import TaskList from '../components/dashboard/TaskList';
 import DashboardNoteItem from '../components/dashboard/DashboardNoteItem';
 import NoteForm from '../components/notes/NoteForm';
+import TaskItem from '../components/tasks/TaskItem';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, FileText, LightbulbIcon, Edit } from 'lucide-react';
+import { Plus, FileText, LightbulbIcon, Edit, Calendar } from 'lucide-react';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -46,19 +46,27 @@ export default function Dashboard() {
       
       setProjects(sortedProjects.slice(0, 3)); // Show top 3 projects by priority
       
-      // Get today's tasks or upcoming tasks
+      // Create a map of projects for quick lookup
+      const projectMap: Record<string, Project> = {};
+      projectsData.forEach(project => {
+        projectMap[project.id] = project;
+      });
+      setProjectsMap(projectMap);
+      
+      // Get today's tasks or upcoming tasks and sort by due date
       const today = new Date().toISOString().split('T')[0];
       const upcomingTasks = tasksData
         .filter(task => !task.due_date || task.due_date >= today)
         .sort((a, b) => {
-          // First by due date
+          // Sort by due date (ascending)
           if (a.due_date && b.due_date) {
             return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
           }
+          // Tasks without due dates come last
           if (a.due_date) return -1;
           if (b.due_date) return 1;
           
-          // Then by priority
+          // If neither has a due date, sort by priority
           return (b.priority_score || 0) - (a.priority_score || 0);
         })
         .slice(0, 5); // Just show top 5 upcoming tasks
@@ -70,13 +78,6 @@ export default function Dashboard() {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 3); // Show 3 most recent notes
       setNotes(recentNotes);
-      
-      // Create a map of projects for quick lookup
-      const projectMap: Record<string, Project> = {};
-      projectsData.forEach(project => {
-        projectMap[project.id] = project;
-      });
-      setProjectsMap(projectMap);
       
       // Set user settings and preferred currency
       if (settings) {
@@ -151,6 +152,17 @@ export default function Dashboard() {
     setIsNoteFormOpen(true);
   };
   
+  const handleTaskDelete = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+    
+    try {
+      await taskService.delete(taskId);
+      setTasks(tasks.filter(task => task.id !== taskId));
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
+  };
+  
   // Add focus listener to refresh data when tab gets focus (like when returning from project edit)
   useEffect(() => {
     const handleFocus = () => {
@@ -195,12 +207,16 @@ export default function Dashboard() {
                 <h2 className="text-lg font-medium text-gray-900">
                   Top Priority Projects
                 </h2>
-                <Link 
-                  to="/projects"
-                  className="text-sm text-primary hover:text-primary-dark"
-                >
-                  View all
-                </Link>
+                <div className="flex gap-2">
+                  <Link
+                    to="/projects"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white hover:bg-primary-dark transition-colors"
+                    aria-label="Add project"
+                    title="Add project"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Link>
+                </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {projects.map(project => (
@@ -216,6 +232,12 @@ export default function Dashboard() {
                   </p>
                 )}
               </div>
+              <Link
+                to="/projects"
+                className="mt-3 block text-sm text-center text-primary hover:text-primary-dark"
+              >
+                View all projects
+              </Link>
             </section>
 
             {/* Notes Section */}
@@ -224,23 +246,18 @@ export default function Dashboard() {
                 <h2 className="text-lg font-medium text-gray-900">
                   Recent Notes
                 </h2>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <button
                     onClick={() => {
                       setSelectedNote(undefined);
                       setIsNoteFormOpen(true);
                     }}
-                    className="inline-flex items-center text-sm font-medium text-primary hover:text-primary-dark"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white hover:bg-primary-dark transition-colors"
+                    aria-label="Add note"
+                    title="Add note"
                   >
-                    <Plus className="w-4 h-4 mr-1.5" />
-                    Add Note
+                    <Plus className="w-4 h-4" />
                   </button>
-                  <Link
-                    to="/notes"
-                    className="text-sm text-primary hover:text-primary-dark"
-                  >
-                    View all
-                  </Link>
                 </div>
               </div>
               
@@ -270,6 +287,12 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+              <Link
+                to="/notes"
+                className="mt-3 block text-sm text-center text-primary hover:text-primary-dark"
+              >
+                View all notes
+              </Link>
             </section>
 
             {/* Tasks Section */}
@@ -278,19 +301,46 @@ export default function Dashboard() {
                 <h2 className="text-lg font-medium text-gray-900">
                   Today's Tasks
                 </h2>
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <Link
                     to="/tasks"
-                    className="text-sm text-primary hover:text-primary-dark"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white hover:bg-primary-dark transition-colors"
+                    aria-label="Add task"
+                    title="Add task"
                   >
-                    View all tasks
+                    <Plus className="w-4 h-4" />
                   </Link>
                 </div>
               </div>
-              <TaskList
-                tasks={tasks}
-                onStatusChange={handleTaskStatusChange}
-              />
+              
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {tasks.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-gray-500">No tasks for today</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {tasks.map((task) => (
+                      <div key={task.id} className="p-4">
+                        <TaskItem
+                          task={task}
+                          project={projectsMap[task.project_id]}
+                          onStatusChange={handleTaskStatusChange}
+                          onDelete={handleTaskDelete}
+                          hideActions={false}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <Link
+                to="/tasks"
+                className="mt-3 block text-sm text-center text-primary hover:text-primary-dark"
+              >
+                View all tasks
+              </Link>
             </section>
           </>
         )}
