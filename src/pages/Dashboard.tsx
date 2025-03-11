@@ -5,9 +5,7 @@ import type { Project, Task, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import ProjectCard from '../components/dashboard/ProjectCard';
 import TaskList from '../components/dashboard/TaskList';
-import { Plus, LightbulbIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import GenerateTasksForm from '../components/tasks/GenerateTasksForm';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -15,7 +13,6 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [isGenerateTasksFormOpen, setIsGenerateTasksFormOpen] = useState(false);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [preferredCurrency, setPreferredCurrency] = useState<'USD' | 'INR' | 'GBP'>('USD');
 
@@ -81,39 +78,6 @@ export default function Dashboard() {
       ));
     } catch (err) {
       console.error('Failed to update task status:', err);
-    }
-  };
-  
-  const handleTasksGenerated = (newTasks: Task[]) => {
-    // Refresh task list after generation
-    fetchTasks();
-    setIsGenerateTasksFormOpen(false);
-  };
-  
-  const fetchTasks = async () => {
-    try {
-      const tasksData = await taskService.getByStatus('pending');
-      
-      // Get today's tasks or upcoming tasks
-      const today = new Date().toISOString().split('T')[0];
-      const upcomingTasks = tasksData
-        .filter(task => !task.due_date || task.due_date >= today)
-        .sort((a, b) => {
-          // First by due date
-          if (a.due_date && b.due_date) {
-            return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-          }
-          if (a.due_date) return -1;
-          if (b.due_date) return 1;
-          
-          // Then by priority
-          return (b.priority_score || 0) - (a.priority_score || 0);
-        })
-        .slice(0, 5); // Just show top 5 upcoming tasks
-        
-      setTasks(upcomingTasks);
-    } catch (err) {
-      console.error('Failed to fetch tasks:', err);
     }
   };
   
@@ -190,22 +154,12 @@ export default function Dashboard() {
                 <h2 className="text-lg font-medium text-gray-900">
                   Today's Tasks
                 </h2>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setIsGenerateTasksFormOpen(true)}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-primary hover:text-primary-dark transition-colors"
-                  >
-                    <Plus className="w-4 h-4 mr-1.5" />
-                    Generate Tasks
-                  </button>
-                  <Link
-                    to="/ai-recommendations"
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
-                  >
-                    <LightbulbIcon className="w-4 h-4 mr-1.5" />
-                    AI Focus Planner
-                  </Link>
-                </div>
+                <Link
+                  to="/tasks"
+                  className="text-sm text-primary hover:text-primary-dark"
+                >
+                  View all tasks
+                </Link>
               </div>
               <TaskList
                 tasks={tasks}
@@ -215,13 +169,6 @@ export default function Dashboard() {
           </>
         )}
       </div>
-      
-      <GenerateTasksForm
-        isOpen={isGenerateTasksFormOpen}
-        onClose={() => setIsGenerateTasksFormOpen(false)}
-        projects={projects}
-        onTasksGenerated={handleTasksGenerated}
-      />
     </PageContainer>
   );
 }

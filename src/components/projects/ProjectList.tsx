@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, DollarSign, PoundSterling, IndianRupee, Trash2, Edit } from 'lucide-react';
+import { Calendar, DollarSign, PoundSterling, IndianRupee, Trash2, Edit, Tag, BarChart2 } from 'lucide-react';
 import type { Project } from '../../types';
 
 interface ProjectListProps {
@@ -47,6 +47,30 @@ export default function ProjectList({ projects, onEdit, onDelete, isLoading, pre
       return <PoundSterling className="w-4 h-4 mr-2" />;
     } else {
       return <DollarSign className="w-4 h-4 mr-2" />;
+    }
+  };
+
+  // Format project type for display
+  const formatProjectType = (type?: string): string => {
+    if (!type) return '';
+    
+    // Convert snake_case to Title Case
+    return type.split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  // Get complexity badge color
+  const getComplexityColor = (complexity?: string): string => {
+    switch (complexity) {
+      case 'easy':
+        return 'bg-green-100 text-green-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'hard':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -97,6 +121,32 @@ export default function ProjectList({ projects, onEdit, onDelete, isLoading, pre
             </div>
             
             <div className="mt-4 space-y-2">
+              {/* Project type badge */}
+              {project.project_type && (
+                <div className="flex items-center text-sm text-gray-500">
+                  <Tag className="w-4 h-4 mr-2" />
+                  <span>{formatProjectType(project.project_type)}</span>
+                  {project.project_type === 'other' && project.project_type_other && (
+                    <span className="ml-1">({project.project_type_other})</span>
+                  )}
+                </div>
+              )}
+              
+              {/* Complexity badge */}
+              {project.complexity && (
+                <div className="flex items-center">
+                  <BarChart2 className="w-4 h-4 mr-2 text-gray-500" />
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${getComplexityColor(project.complexity)}`}>
+                    {project.complexity.charAt(0).toUpperCase() + project.complexity.slice(1)}
+                  </span>
+                  {project.is_recurring && (
+                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                      Recurring
+                    </span>
+                  )}
+                </div>
+              )}
+              
               {(project.start_date || project.end_date) && (
                 <div className="flex items-center text-sm text-gray-500">
                   <Calendar className="w-4 h-4 mr-2" />
