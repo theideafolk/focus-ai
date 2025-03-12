@@ -27,7 +27,7 @@ export interface Note {
   user_id: string;
   project_id?: string;
   content: string;
-  title?: string; // New field for note title
+  title?: string;
   created_at: string;
   updated_at: string;
 }

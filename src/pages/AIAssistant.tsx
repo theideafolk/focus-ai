@@ -308,9 +308,87 @@ export default function AIAssistant() {
       <div className="flex flex-col h-[calc(100vh-8rem)]">
         <h1 className="text-2xl font-medium text-gray-900 mb-4">Focus</h1>
         
-        <div className="flex flex-1 gap-4 overflow-hidden">
-          {/* Left pane - Chat history */}
-          <div className="w-1/3 bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
+        {/* Desktop: Side-by-side, Mobile: Stacked layout */}
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden">
+          {/* Response pane - Appears first on mobile */}
+          <div className="flex-1 order-1 lg:order-2 bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col h-[60vh] lg:h-auto">
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-gray-500 p-8">
+                <div className="text-center">
+                  <ArrowRight className="w-8 h-8 mx-auto mb-2 text-primary/50" />
+                  <p>Start a conversation with Focus</p>
+                  <p className="text-sm mt-2">Use @ to tag projects or notes for more context</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto p-6">
+                  {/* Show the latest AI response */}
+                  {messages.filter(m => m.role === 'assistant').length > 0 ? (
+                    <div className="prose max-w-none">
+                      {editingResponse ? (
+                        // Edit mode
+                        <>
+                          <textarea
+                            value={responseEdit}
+                            onChange={(e) => setResponseEdit(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                            rows={12}
+                          />
+                          
+                          <div className="flex justify-end gap-2 mt-4">
+                            <button
+                              onClick={cancelEdits}
+                              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => saveEdits(editingResponse)}
+                              className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+                            >
+                              Save Changes
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        // View mode
+                        <>
+                          <div className="whitespace-pre-wrap">
+                            {messages.filter(m => m.role === 'assistant').pop()?.content}
+                          </div>
+                          
+                          <div className="flex justify-end gap-2 mt-6">
+                            <button
+                              onClick={() => startEditing(messages.filter(m => m.role === 'assistant').pop()?.id || '')}
+                              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors border border-gray-300 rounded-lg"
+                            >
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => saveAsNote(messages.filter(m => m.role === 'assistant').pop()?.content || '')}
+                              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+                            >
+                              <Save className="w-4 h-4 mr-2" />
+                              Save as Note
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      Waiting for AI response...
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Chat history and input - Appears second on mobile */}
+          <div className="w-full lg:w-1/3 order-2 lg:order-1 bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col h-[40vh] lg:h-auto">
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
               {messages.map(message => (
                 <div 
@@ -414,86 +492,9 @@ export default function AIAssistant() {
               </div>
               
               {isGenerating && (
-                <p className="text-xs text-gray-500 mt-1">AI is thinking...</p>
+                <p className="text-xs text-gray-500 mt-1">Focus is thinking...</p>
               )}
             </div>
-          </div>
-          
-          {/* Right pane - AI response */}
-          <div className="flex-1 bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
-            {messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-gray-500 p-8">
-                <div className="text-center">
-                  <ArrowRight className="w-8 h-8 mx-auto mb-2 text-primary/50" />
-                  <p>Start a conversation with the AI Assistant</p>
-                  <p className="text-sm mt-2">Use @ to tag projects or notes for more context</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex-1 overflow-y-auto p-6">
-                  {/* Show the latest AI response */}
-                  {messages.filter(m => m.role === 'assistant').length > 0 ? (
-                    <div className="prose max-w-none">
-                      {editingResponse ? (
-                        // Edit mode
-                        <>
-                          <textarea
-                            value={responseEdit}
-                            onChange={(e) => setResponseEdit(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                            rows={12}
-                          />
-                          
-                          <div className="flex justify-end gap-2 mt-4">
-                            <button
-                              onClick={cancelEdits}
-                              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => saveEdits(editingResponse)}
-                              className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
-                            >
-                              Save Changes
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        // View mode
-                        <>
-                          <div className="whitespace-pre-wrap">
-                            {messages.filter(m => m.role === 'assistant').pop()?.content}
-                          </div>
-                          
-                          <div className="flex justify-end gap-2 mt-6">
-                            <button
-                              onClick={() => startEditing(messages.filter(m => m.role === 'assistant').pop()?.id || '')}
-                              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800 transition-colors border border-gray-300 rounded-lg"
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => saveAsNote(messages.filter(m => m.role === 'assistant').pop()?.content || '')}
-                              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
-                            >
-                              <Save className="w-4 h-4 mr-2" />
-                              Save as Note
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      Waiting for AI response...
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         </div>
       </div>
