@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Briefcase, FileText, Settings, CheckCircle, LogOut, Brain, CheckSquare } from 'lucide-react';
+import { Briefcase, FileText, Settings, LogOut, CheckSquare, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function Navbar() {
@@ -10,11 +10,10 @@ export default function Navbar() {
   const isActive = (path: string) => location.pathname === path;
   
   const links = [
-    { path: '/dashboard', icon: Home, label: 'Dashboard' },
     { path: '/projects', icon: Briefcase, label: 'Projects' },
-    { path: '/tasks', icon: CheckCircle, label: 'Tasks' },
+    { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
     { path: '/notes', icon: FileText, label: 'Notes' },
-    { path: '/insights', icon: Brain, label: 'Insights' },
+    { path: '/ai-assistant', icon: MessageSquare, label: 'Focus' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -28,7 +27,7 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/dashboard" className="flex items-center">
+              <Link to="/dashboard" className="flex items-center hover:text-primary transition-colors">
                 <CheckSquare className="h-6 w-6 text-primary mr-2" />
                 <span className="text-xl font-semibold text-gray-900">focus</span>
               </Link>
@@ -66,7 +65,7 @@ export default function Navbar() {
       
       {/* Mobile navigation */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
-        <div className="grid grid-cols-6 h-16">
+        <div className="grid grid-cols-5 h-16">
           {links.map(({ path, icon: Icon, label }) => (
             <Link
               key={path}

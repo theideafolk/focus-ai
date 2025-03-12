@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { projectService, taskService, noteService, userSettingsService } from '../services/supabaseService';
-import { storeNoteEmbedding } from '../services/openaiService';
+// Import from updated service structure
+import { 
+  projectService, 
+  taskService, 
+  noteService, 
+  userSettingsService,
+  storeNoteEmbedding
+} from '../services';
 import type { Project, Task, Note, UserSettings } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import ProjectCard from '../components/dashboard/ProjectCard';
 import DashboardNoteItem from '../components/dashboard/DashboardNoteItem';
-import StreakCounter from '../components/dashboard/StreakCounter'; // Import the new component
+import StreakCounter from '../components/dashboard/StreakCounter';
 import NoteForm from '../components/notes/NoteForm';
 import TaskItem from '../components/tasks/TaskItem';
 import { Link, useNavigate } from 'react-router-dom';

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { projectService, taskService, noteService, userSettingsService } from '../services/supabaseService';
-import { analyticsService } from '../services/analyticsService';
+// Use the compatibility service exports
+import { projectService, taskService, noteService, userSettingsService } from '../services';
+import { analyticsService } from '../services/analytics';
 import type { Project, Task, Note, UserSettings, TimeEstimateAccuracy, ProjectTypeEfficiency, ProductivityByDay, UserInsights } from '../types';
 import PageContainer from '../components/layout/PageContainer';
 import { 

@@ -9,6 +9,7 @@ import Notes from './pages/Notes';
 import Tasks from './pages/Tasks';
 import Settings from './pages/Settings';
 import Insights from './pages/Insights';
+import AIAssistant from './pages/AIAssistant';
 import './index.css';
 
 // This component will handle the redirect logic
@@ -85,6 +86,7 @@ function App() {
               <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
+              <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
               <Route
                 path="/"
                 element={
